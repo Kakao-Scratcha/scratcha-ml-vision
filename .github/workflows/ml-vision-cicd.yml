@@ -1,0 +1,162 @@
+name: CI/CD ML Vision
+
+on:
+    push:
+        branches:
+            - main
+            - develop
+    pull_request:
+        branches:
+            - main
+            - develop
+
+jobs:
+    deploy:
+        runs-on: ubuntu-latest
+        # develop 브랜치에 푸시된 경우에만 이 잡을 실행합니다.
+        if: github.ref == 'refs/heads/develop'
+        env:
+            SERVICE_NAME: ml-vision
+            REGISTRY: ${{ secrets.KCR_REGISTRY_URL }}
+            IMAGE_NAME: ${{ secrets.KCR_ML_VISION_DEV_IMAGE_NAME }}
+
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
+
+            - name: Set up Docker Buildx
+              uses: docker/setup-buildx-action@v3
+
+            - name: Login to Kakao Cloud Registry
+              # 카카오클라우드 레지스트리에 로그인합니다.
+              run: |
+                  echo "${{ secrets.KCR_PASSWORD }}" | docker login ${{ secrets.KCR_REGISTRY_URL }} -u "${{ secrets.KCR_USER }}" --password-stdin
+
+            - name: Build and push Docker image
+              # 이미지를 빌드하고 KCR에 푸시합니다.
+              # date + github.sha 조합으로 태그를 생성하고 빌드 캐시를 활용합니다.
+              run: |
+                  IMAGE_TAG=$(date +%Y%m%d%H%M%S)-${{ github.sha }}
+                  echo "IMAGE_TAG=$IMAGE_TAG" >> $GITHUB_ENV
+
+                  docker build -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:$IMAGE_TAG .
+                  docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:$IMAGE_TAG
+                  docker tag ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:$IMAGE_TAG ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+                  docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+
+            - name: Run ML Vision tests
+              # ML Vision 관련 테스트 실행
+              run: |
+                  echo "Running ML Vision tests..."
+                  # 예시: docker run --rm ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }} python -m pytest quiz/tests/
+                  echo "ML Vision tests completed."
+
+            - name: Set up SSH Agent
+              # SSH 프라이빗 키를 설정하여 서버에 접속할 수 있도록 합니다.
+              uses: webfactory/ssh-agent@v0.9.0
+              with:
+                  ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+            - name: Deploy ML Vision to development server
+              env:
+                  SSH_HOST: ${{ secrets.SSH_HOST }}
+                  SSH_USERNAME: ${{ secrets.SSH_USERNAME }}
+                  SSH_PORT: ${{ secrets.SSH_PORT }}
+              run: |
+                  set -x
+                  mkdir -p ~/.ssh
+                  ssh-keyscan -v -H "$SSH_HOST" >> ~/.ssh/known_hosts 2>&1
+
+                  # 개발 서버에 ML Vision 컨테이너 배포
+                  ssh -v -o StrictHostKeyChecking=no \
+                       -p $SSH_PORT \
+                       "$SSH_USERNAME@$SSH_HOST" \
+                       "echo '${{ secrets.KCR_PASSWORD }}' | docker login ${{ secrets.KCR_REGISTRY_URL }} -u '${{ secrets.KCR_USER }}' --password-stdin && \
+                        docker stop ml_vision_dev || true && \
+                        docker rm ml_vision_dev || true && \
+                        docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }} && \
+                        docker run -d --name ml_vision_dev \
+                          --env-file /home/ubuntu/.env.ml-vision \
+                          -p 8080:8080 \
+                          --gpus all \
+                          ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}" 2>&1
+
+    # 메인 브랜치에 푸시될 때 Kubernetes(ArgoCD)로 배포하는 잡
+    deploy-to-kubernetes:
+        runs-on: ubuntu-latest
+        if: github.ref == 'refs/heads/main'
+        env:
+            SERVICE_NAME: ml-vision
+            REGISTRY: ${{ secrets.KCR_REGISTRY_URL }}
+            IMAGE_NAME: ${{ secrets.KCR_ML_VISION_IMAGE_NAME }}
+
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
+
+            - name: Set up Docker Buildx
+              uses: docker/setup-buildx-action@v3
+
+            - name: Login to Kakao Cloud Registry
+              run: |
+                  echo "${{ secrets.KCR_PASSWORD }}" | docker login ${{ secrets.KCR_REGISTRY_URL }} -u "${{ secrets.KCR_USER }}" --password-stdin
+
+            - name: Build & Push ML Vision Docker Image
+              # 프로덕션용 이미지를 빌드하고 KCR에 푸시합니다.
+              run: |
+                  IMAGE_TAG=$(date +%Y%m%d%H%M%S)-${{ github.sha }}
+                  echo "IMAGE_TAG=$IMAGE_TAG" >> $GITHUB_ENV
+
+                  docker build -t ${{ secrets.KCR_REGISTRY_URL }}/${{ secrets.KCR_ML_VISION_IMAGE_NAME }}:$IMAGE_TAG .
+                  docker push ${{ secrets.KCR_REGISTRY_URL }}/${{ secrets.KCR_ML_VISION_IMAGE_NAME }}:$IMAGE_TAG
+                  docker tag ${{ secrets.KCR_REGISTRY_URL }}/${{ secrets.KCR_ML_VISION_IMAGE_NAME }}:$IMAGE_TAG ${{ secrets.KCR_REGISTRY_URL }}/${{ secrets.KCR_ML_VISION_IMAGE_NAME }}:latest
+                  docker push ${{ secrets.KCR_REGISTRY_URL }}/${{ secrets.KCR_ML_VISION_IMAGE_NAME }}:latest
+
+            - name: Checkout infra-test repo
+              uses: actions/checkout@v4
+              with:
+                  repository: ${{ secrets.INFRA_REPO_NAME }}  # 예: username/infra-test
+                  token: ${{ secrets.REPO_TOKEN }}
+                  path: infra-test
+
+            - name: Update ML Vision Helm values.yaml
+              run: |
+                  # ml-vision-chart의 values.yaml에서 이미지 태그 업데이트
+                  sed -i "s|tag:.*|tag: \"${{ env.IMAGE_TAG }}\"|" infra-test/helm-chart/ml-vision-chart/values.yaml
+
+            - name: Commit & Push ML Vision changes
+              run: |
+                  cd infra-test
+                  git config user.name "github-actions"
+                  git config user.email "actions@github.com"
+                  git add helm-chart/ml-vision-chart/values.yaml
+                  git commit -m "Update ML Vision image tag to ${{ env.IMAGE_TAG }}"
+                  git push origin main
+
+    # 크론잡 스케줄 변경을 위한 별도 워크플로우
+    update-cronjob-schedule:
+        runs-on: ubuntu-latest
+        # 수동 트리거 또는 특정 조건에서만 실행
+        if: github.event_name == 'workflow_dispatch'
+        
+        steps:
+            - name: Checkout infra-test repo
+              uses: actions/checkout@v4
+              with:
+                  repository: ${{ secrets.INFRA_REPO_NAME }}
+                  token: ${{ secrets.REPO_TOKEN }}
+                  path: infra-test
+
+            - name: Update CronJob schedule to production
+              run: |
+                  # 테스트용 5분 스케줄을 프로덕션용 하루 2번으로 변경
+                  sed -i 's|schedule: "\*/5 \* \* \* \*"|schedule: "0 0,12 * * *"|' infra-test/helm-chart/ml-vision-chart/values.yaml
+
+            - name: Commit & Push schedule changes
+              run: |
+                  cd infra-test
+                  git config user.name "github-actions"
+                  git config user.email "actions@github.com"
+                  git add helm-chart/ml-vision-chart/values.yaml
+                  git commit -m "Update CronJob schedule to production (twice daily)"
+                  git push origin main
