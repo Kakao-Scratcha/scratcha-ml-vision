@@ -21,9 +21,9 @@ DB_CONFIG = {
     'connect_timeout': 60
 }
 
-# 기본 설정
-MODEL_PATH = "../models/train.pt"  # YOLO 모델 경로(문제 생성용)
-BASIC_MODEL_PATH = "../models/yolo11x.pt"  # 기본 YOLO 모델 경로 (문제 검증용)
+# 기본 설정 (TensorFlow 모델)
+MODEL_PATH = "../models/train_tf"  # TensorFlow YOLO11s 파인튜닝 모델 경로(문제 생성용)
+BASIC_MODEL_PATH = "../models/yolo11x_tf"  # 기본 TensorFlow YOLO11x 모델 경로 (문제 검증용)
 IMAGE_FOLDER = "images/"  # 오브젝트 스토리지 문제 이미지 경로
 CONFIDENCE_THRESHOLD = 0.6  # 신뢰도 임계값 (문제 생성용)
 IOU_THRESHOLD = 0.5  # IoU 임계값 (문제 생성용)
