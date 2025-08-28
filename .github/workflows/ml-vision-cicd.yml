@@ -19,6 +19,7 @@ jobs:
             SERVICE_NAME: ml-vision
             REGISTRY: ${{ secrets.KCR_REGISTRY_URL }}
             IMAGE_NAME: ${{ secrets.KCR_ML_VISION_DEV_IMAGE_NAME }}
+            
 
         steps:
             - name: Checkout code
@@ -71,12 +72,11 @@ jobs:
                   ssh -v -o StrictHostKeyChecking=no \
                        -p $SSH_PORT \
                        "$SSH_USERNAME@$SSH_HOST" \
-                       "echo '${{ secrets.KCR_PASSWORD }}' | docker login ${{ secrets.KCR_REGISTRY_URL }} -u '${{ secrets.KCR_USER }}' --password-stdin && \
-                        docker stop ml_vision_dev || true && \
-                        docker rm ml_vision_dev || true && \
-                        docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }} && \
-                        docker run -d --name ml_vision_dev \
-                          --env-file /home/ubuntu/.env.ml-vision \
+                       "echo '${{ secrets.KCR_PASSWORD }}' | sudo docker login ${{ secrets.KCR_REGISTRY_URL }} -u '${{ secrets.KCR_USER }}' --password-stdin && \
+                        sudo docker stop ml_vision_dev || true && \
+                        sudo docker rm ml_vision_dev || true && \
+                        sudo docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }} && \
+                        sudo docker run -d --name ml_vision_dev \
                           -p 8080:8080 \
                           --gpus all \
                           ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}" 2>&1
@@ -115,21 +115,21 @@ jobs:
             - name: Checkout infra-test repo
               uses: actions/checkout@v4
               with:
-                  repository: ${{ secrets.INFRA_REPO_NAME }}  # 예: username/infra-test
+                  repository: ${{ secrets.REPO_NAME }}  # 예: username/infra-test
                   token: ${{ secrets.REPO_TOKEN }}
-                  path: infra-test
+                  path: ${{ secrets.REPO_PATH }}
 
             - name: Update ML Vision Helm values.yaml
               run: |
                   # ml-vision-chart의 values.yaml에서 이미지 태그 업데이트
-                  sed -i "s|tag:.*|tag: \"${{ env.IMAGE_TAG }}\"|" infra-test/helm-chart/ml-vision-chart/values.yaml
+                  sed -i "s|tag:.*|tag: \"${{ env.IMAGE_TAG }}\"|" ${{ secrets.REPO_PATH }}/helm-chart/ml-vision-chart/values.yaml
 
             - name: Commit & Push ML Vision changes
               run: |
-                  cd infra-test
+                  cd ${{ secrets.REPO_PATH }}
                   git config user.name "github-actions"
                   git config user.email "actions@github.com"
-                  git add helm-chart/ml-vision-chart/values.yaml
+                  git add ${{ secrets.REPO_PATH }}/helm-chart/ml-vision-chart/values.yaml
                   git commit -m "Update ML Vision image tag to ${{ env.IMAGE_TAG }}"
                   git push origin main
 
@@ -143,9 +143,9 @@ jobs:
             - name: Checkout infra-test repo
               uses: actions/checkout@v4
               with:
-                  repository: ${{ secrets.INFRA_REPO_NAME }}
+                  repository: ${{ secrets.REPO_NAME }}
                   token: ${{ secrets.REPO_TOKEN }}
-                  path: infra-test
+                  path: ${{ secrets.REPO_PATH }}
 
             - name: Update CronJob schedule to production
               run: |
@@ -154,9 +154,9 @@ jobs:
 
             - name: Commit & Push schedule changes
               run: |
-                  cd infra-test
+                  cd ${{ secrets.REPO_PATH }}
                   git config user.name "github-actions"
                   git config user.email "actions@github.com"
-                  git add helm-chart/ml-vision-chart/values.yaml
+                  git add ${{ secrets.REPO_PATH }}/helm-chart/ml-vision-chart/values.yaml
                   git commit -m "Update CronJob schedule to production (twice daily)"
                   git push origin main
