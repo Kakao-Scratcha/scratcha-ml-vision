@@ -1,0 +1,53 @@
+# Git 관련
+.git
+.gitignore
+
+# Python 캐시
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# 환경설정 (보안상 제외 - 민감한 정보 포함)
+.env
+*.env
+quiz/.env
+**/**.env
+.env.*
+config.json
+secrets.json
+
+# IDE 설정
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# 로그 파일
+*.log
+logs/
+
+# 테스트 파일
+test_*.py
+*_test.py
+training/*
+
+# 모델 파일은 포함 (Kubernetes 파드에서 필요)
+# models/ 디렉토리는 제외하지 않음
+
+# 문서 파일
+README.md
+*.md
+
+# 임시 파일
+.tmp/
+temp/
+
+# OS 관련
+.DS_Store
+Thumbs.db
+
+# 쿠버네티스 파일 (이미지에 포함할 필요 없음)
+k8s-*.yaml
+Dockerfile
+

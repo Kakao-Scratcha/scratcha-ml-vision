@@ -22,9 +22,24 @@ DB_CONFIG = {
 }
 
 # 기본 설정 (TensorFlow 모델)
-MODEL_PATH = "../models/train_tf"  # TensorFlow YOLO11s 파인튜닝 모델 경로(문제 생성용)
-BASIC_MODEL_PATH = "../models/yolo11x_tf"  # 기본 TensorFlow YOLO11x 모델 경로 (문제 검증용)
-IMAGE_FOLDER = "images/"  # 오브젝트 스토리지 문제 이미지 경로
+# Docker 환경과 로컬 환경 모두 지원하는 경로 설정
+import os
+_BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+# 모델 경로 (컨테이너 실행 시 오브젝트 스토리지에서 다운로드)
+# /tmp/ 대신 영구 디렉토리 사용 (Windows에서는 현재 작업 디렉토리 하위)
+_BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+MODEL_PATH = os.path.join(_BASE_DIR, "models", "train_tf")  # TensorFlow YOLO11s 파인튜닝 모델 경로(문제 생성용)
+BASIC_MODEL_PATH = os.path.join(_BASE_DIR, "models", "yolo11x_tf")  # 기본 TensorFlow YOLO11x 모델 경로 (문제 검증용)
+
+# 이미지 폴더 경로
+ORIGINAL_IMAGE_FOLDER = "images/"  # 새 버킷의 원본 이미지 경로
+QUIZ_IMAGE_FOLDER = "quiz_images/"  # 기존 버킷의 문제 이미지 경로
+IMAGE_FOLDER = "images/"  # 오브젝트 스토리지 문제 이미지 경로 (기존 호환성)
+
+# 모델 다운로드 설정
+MODEL_DOWNLOAD_TIMEOUT = 300  # 모델 다운로드 타임아웃 (초)
+MODEL_DOWNLOAD_RETRY = 3      # 모델 다운로드 재시도 횟수
 CONFIDENCE_THRESHOLD = 0.6  # 신뢰도 임계값 (문제 생성용)
 IOU_THRESHOLD = 0.5  # IoU 임계값 (문제 생성용)
 CREATED_AT = datetime.now().isoformat()  # 생성 시간 (문제 생성용)

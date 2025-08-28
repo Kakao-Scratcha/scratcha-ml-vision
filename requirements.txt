@@ -1,8 +1,5 @@
-# YOLO 객체 검출
-ultralytics>=8.0.0
-
-# 이미지 처리
-opencv-python>=4.8.0
+# 이미지 처리 (헤드리스 버전 - Docker 환경에 적합)
+opencv-python-headless>=4.8.0
 numpy>=1.24.0
 pillow>=10.0.0
 
@@ -23,19 +20,9 @@ python-dotenv>=1.0.0
 boto3==1.35.99
 botocore>=1.29.0
 
-# PyTorch (YOLO가 의존)
-torch>=2.0.0
-torchvision>=0.15.0
 
-# TensorFlow (모델 변환용)
-tensorflow>=2.13.0
-
-# ONNX (모델 변환용)
-onnx>=1.14.0
-onnxruntime>=1.15.0
-
-# ONNX to TensorFlow 변환
-tf2onnx>=1.14.0
+# TensorFlow
+tensorflow==2.13.0
 
 # 기타 유틸리티
 typing-extensions>=4.5.0

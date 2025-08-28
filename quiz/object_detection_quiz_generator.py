@@ -11,10 +11,11 @@ from typing import Dict, List
 
 # 모듈화된 컴포넌트 import
 from components import DatabaseManager, YOLODetector, ImageHandler, QuizBuilder
+from components.storage_manager import StorageManager
+from components.model_manager import ModelManager
 from config.settings import (
-    MODEL_PATH, 
-    BASIC_MODEL_PATH, 
-    IMAGE_FOLDER, 
+    ORIGINAL_IMAGE_FOLDER, 
+    QUIZ_IMAGE_FOLDER, 
     DIFFICULTY_CONFIGS
 )
 
@@ -24,24 +25,32 @@ class ObjectDetectionQuizGenerator:
     각 컴포넌트를 조합하여 퀴즈를 생성합니다.
     """
     
-    def __init__(self, model_path: str = MODEL_PATH):
+    def __init__(self):
         """
         초기화 - 각 컴포넌트 인스턴스 생성
-        
-        Args:
-            model_path: YOLO 모델 경로
         """
         print("CAPTCHA 퀴즈 생성기 초기화 중...")
         
-        # 컴포넌트 초기화
+        # 스토리지 및 모델 관리자 초기화
+        self.storage_manager = StorageManager()
+        self.model_manager = ModelManager()
+        
+        # 모델 준비 확인
+        if not self.model_manager.ensure_models_available():
+            raise RuntimeError("ML 모델을 준비할 수 없습니다.")
+        
+        # 컴포넌트 초기화 (모델 경로는 ModelManager에서 가져옴)
+        model_paths = self.model_manager.get_model_paths()
         self.db_manager = DatabaseManager()
-        self.yolo_detector = YOLODetector(model_path, BASIC_MODEL_PATH)
+        self.yolo_detector = YOLODetector(model_paths['train_model'], model_paths['basic_model'])
         self.image_handler = ImageHandler()
         self.quiz_builder = QuizBuilder()
         
         print("모든 컴포넌트 초기화 완료!")
+        print(f"  - 훈련된 모델: {model_paths['train_model']}")
+        print(f"  - 기본 모델: {model_paths['basic_model']}")
     
-    def generate_quiz_with_difficulty(self, difficulty: str, image_folder: str = IMAGE_FOLDER) -> Dict:
+    def generate_quiz_with_difficulty(self, difficulty: str, image_folder: str = ORIGINAL_IMAGE_FOLDER) -> Dict:
         """
         특정 난이도로 퀴즈 생성
         
@@ -56,8 +65,8 @@ class ObjectDetectionQuizGenerator:
             raise ValueError(f"지원하지 않는 난이도: {difficulty}. 지원 난이도: {list(DIFFICULTY_CONFIGS.keys())}")
         
         try:
-            # 1. 오브젝트 스토리지에서 랜덤 이미지 가져오기
-            image_key, image_bytes = self.image_handler.get_random_image_from_storage(image_folder)
+            # 1. 새 버킷에서 랜덤 원본 이미지 가져오기
+            image_key, image_bytes = self.storage_manager.get_random_original_image(image_folder)
             
             # 2. YOLO 객체 검출
             detected_objects = self.yolo_detector.detect_objects(image_bytes)
@@ -110,8 +119,14 @@ class ObjectDetectionQuizGenerator:
                 print(f" - 신뢰도 감소율: {(correct_answer['confidence'] - basic_best['confidence'])/correct_answer['confidence']*100:.1f}%")
                 print(f" - 노이즈 설정: 강도 {intensity*100:.0f}%, 알파 {alpha*100:.0f}%")
             
-            # 7. 오브젝트 스토리지에 저장 (난이도별 폴더)
-            storage_key = self.image_handler.save_image_array_to_object_storage(processed_image_array, quiz_id, difficulty=difficulty)
+            # 7. 노이즈 처리된 이미지를 기존 버킷에 저장 (난이도별 폴더)
+            # 이미지 배열을 바이트로 변환
+            success, encoded_image = cv2.imencode('.jpg', processed_image_array)
+            if success:
+                processed_image_bytes = encoded_image.tobytes()
+                storage_key = self.storage_manager.save_quiz_image(processed_image_bytes, quiz_id, difficulty)
+            else:
+                raise ValueError("노이즈 처리된 이미지 인코딩에 실패했습니다.")
             
             # 난이도별 프롬프트 구성 - 정확한 값 사용
             prompt_text = f"스크래치 후 정답을 선택하세요. 노이즈 {intensity*100:.0f}% 알파블랜드 {alpha*100:.0f}%"
@@ -140,7 +155,7 @@ class ObjectDetectionQuizGenerator:
             print(f"퀴즈 생성 중 오류 발생: {e}")
             raise
     
-    async def generate_quizzes_by_difficulty_async(self, image_folder: str = IMAGE_FOLDER, 
+    async def generate_quizzes_by_difficulty_async(self, image_folder: str = ORIGINAL_IMAGE_FOLDER, 
                                                  max_concurrent: int = 3) -> Dict[str, List[Dict]]:
         """
         3가지 난이도별로 정해진 수량만큼 퀴즈를 비동기 병렬로 생성
@@ -236,7 +251,7 @@ async def main():
         print(f"   - MIDDLE: {DIFFICULTY_CONFIGS['middle']['count']}개 (노이즈 {DIFFICULTY_CONFIGS['middle']['intensity_pct']}%, 알파 {DIFFICULTY_CONFIGS['middle']['alpha_pct']}%)")
         print(f"   - LOW: {DIFFICULTY_CONFIGS['low']['count']}개 (노이즈 {DIFFICULTY_CONFIGS['low']['intensity_pct']}%, 알파 {DIFFICULTY_CONFIGS['low']['alpha_pct']}%)")
         
-        all_quizzes = await generator.generate_quizzes_by_difficulty_async("images/")
+        all_quizzes = await generator.generate_quizzes_by_difficulty_async(ORIGINAL_IMAGE_FOLDER)
         
         # 생성된 퀴즈 요약 정보 출력
         if all_quizzes:

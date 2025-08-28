@@ -22,10 +22,16 @@ class YOLODetector:
         """
         print("TensorFlow YOLO 검출기 초기화 중...")
         
+        # 모델 경로 검증
+        self._validate_model_paths(model_path, basic_model_path)
+        
         # TensorFlow YOLO 모델 로딩
         try:
-            # SavedModel 형식으로 로딩
-            self.model = tf.saved_model.load(model_path)
+            # SavedModel 형식으로 로딩 (로컬 디바이스에서 로딩)
+            load_options = tf.saved_model.LoadOptions(
+                experimental_io_device='/job:localhost'
+            )
+            self.model = tf.saved_model.load(model_path, options=load_options)
             self.predict_fn = self.model.signatures['serving_default']
             print(f"✓ TensorFlow YOLO 모델 로딩 성공: {model_path}")
         except Exception as e:
@@ -34,7 +40,10 @@ class YOLODetector:
             
         try:
             # 기본 TensorFlow YOLO 모델 로딩 (검증용)
-            self.basic_model = tf.saved_model.load(basic_model_path)
+            load_options = tf.saved_model.LoadOptions(
+                experimental_io_device='/job:localhost'
+            )
+            self.basic_model = tf.saved_model.load(basic_model_path, options=load_options)
             self.basic_predict_fn = self.basic_model.signatures['serving_default']
             print(f"✓ 기본 TensorFlow YOLO 모델 로딩 성공: {basic_model_path}")
         except Exception as e:
@@ -331,3 +340,37 @@ class YOLODetector:
                 
         except Exception as e:
             return True  # 오류 발생 시 다른 결과로 간주
+    
+    def _validate_model_paths(self, model_path: str, basic_model_path: str):
+        """
+        모델 경로와 필요한 파일들이 존재하는지 검증
+        
+        Args:
+            model_path: 훈련된 모델 경로
+            basic_model_path: 기본 모델 경로
+        """
+        import os
+        
+        print(f"모델 경로 검증 중...")
+        print(f"  - 훈련된 모델: {model_path}")
+        print(f"  - 기본 모델: {basic_model_path}")
+        
+        # 훈련된 모델 경로 검증
+        if not os.path.exists(model_path):
+            raise FileNotFoundError(f"훈련된 모델 경로가 존재하지 않습니다: {model_path}")
+        
+        # 기본 모델 경로 검증
+        if not os.path.exists(basic_model_path):
+            raise FileNotFoundError(f"기본 모델 경로가 존재하지 않습니다: {basic_model_path}")
+        
+        # SavedModel 파일 검증
+        saved_model_files = [
+            os.path.join(model_path, "saved_model.pb"),
+            os.path.join(basic_model_path, "saved_model.pb")
+        ]
+        
+        for file_path in saved_model_files:
+            if not os.path.exists(file_path):
+                raise FileNotFoundError(f"SavedModel 파일이 존재하지 않습니다: {file_path}")
+        
+        print("✓ 모델 경로 검증 완료!")
