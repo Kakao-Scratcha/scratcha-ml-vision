@@ -24,9 +24,9 @@ COPY . .
 # 모델 저장 디렉토리 생성
 RUN mkdir -p /tmp/models/train_tf /tmp/models/yolo11x_tf
 
-# 포트 노출
-EXPOSE 8080
+# 포트 노출 (FastAPI 기본 포트)
+EXPOSE 8000
 
-# 컨테이너 시작 시 모델 다운로드 및 애플리케이션 실행
-CMD ["python", "-m", "quiz.object_detection_quiz_generator"]
+# 컨테이너 시작 시 FastAPI 서버 실행
+CMD ["python", "-m", "quiz.fastapi_app"]
 
