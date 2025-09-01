@@ -12,7 +12,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.interval import IntervalTrigger
 from apscheduler.triggers.cron import CronTrigger
 
-from ..object_detection_quiz_generator import ObjectDetectionQuizGenerator
+from object_detection_quiz_generator import ObjectDetectionQuizGenerator
 from config.settings import (
     SCHEDULE_ENABLED, 
     SCHEDULE_INTERVAL_HOURS, 

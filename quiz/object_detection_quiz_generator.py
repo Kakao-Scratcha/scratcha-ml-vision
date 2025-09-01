@@ -10,9 +10,9 @@ from datetime import datetime
 from typing import Dict, List
 
 # 모듈화된 컴포넌트 import
-from .components import DatabaseManager, YOLODetector, ImageHandler, QuizBuilder
-from .components.storage_manager import StorageManager
-from .components.model_manager import ModelManager
+from components import DatabaseManager, YOLODetector, ImageHandler, QuizBuilder
+from components.storage_manager import StorageManager
+from components.model_manager import ModelManager
 from config.settings import (
     ORIGINAL_IMAGE_FOLDER, 
     QUIZ_IMAGE_FOLDER, 

@@ -14,8 +14,8 @@ from fastapi import FastAPI, HTTPException, BackgroundTasks
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
-from .services import get_scheduler_service, init_scheduler_service, cleanup_scheduler_service
-from .config.settings import (
+from services import get_scheduler_service, init_scheduler_service, cleanup_scheduler_service
+from config.settings import (
     API_HOST, 
     API_PORT, 
     SCHEDULE_ENABLED,
