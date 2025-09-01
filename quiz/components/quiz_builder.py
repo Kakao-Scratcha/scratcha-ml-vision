@@ -4,7 +4,7 @@
 
 import random
 from typing import List, Dict, Optional
-from ..config.settings import (
+from config.settings import (
     CONFIDENCE_THRESHOLD, 
     IOU_THRESHOLD, 
     VALID_CLASSES, 

@@ -11,7 +11,7 @@ import uuid
 from typing import Tuple, Optional
 from .Auth import bucket_name, get_list_objects, upload_file, download_file
 from .image_preprocessor import ImagePreprocessor
-from ..config.settings import (
+from config.settings import (
     IMAGE_FOLDER, 
     NOISE_FREQUENCY, 
     NOISE_INTENSITY, 

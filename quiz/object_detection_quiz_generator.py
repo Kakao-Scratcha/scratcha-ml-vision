@@ -13,7 +13,7 @@ from typing import Dict, List
 from .components import DatabaseManager, YOLODetector, ImageHandler, QuizBuilder
 from .components.storage_manager import StorageManager
 from .components.model_manager import ModelManager
-from .config.settings import (
+from config.settings import (
     ORIGINAL_IMAGE_FOLDER, 
     QUIZ_IMAGE_FOLDER, 
     DIFFICULTY_CONFIGS
@@ -246,7 +246,7 @@ class ObjectDetectionQuizGenerator:
         """
         if target_counts is None:
             # 기본 설정값 사용 (난이도별 동일한 수량)
-            from .config.settings import SCHEDULED_QUIZ_COUNT
+            from config.settings import SCHEDULED_QUIZ_COUNT
             target_counts = {
                 'high': SCHEDULED_QUIZ_COUNT,
                 'middle': SCHEDULED_QUIZ_COUNT,

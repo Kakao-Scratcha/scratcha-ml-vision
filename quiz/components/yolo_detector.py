@@ -6,7 +6,7 @@ import cv2
 import numpy as np
 import tensorflow as tf
 from typing import List, Dict
-from ..config.settings import VALID_CLASSES, CONFIDENCE_THRESHOLD, IOU_THRESHOLD
+from config.settings import VALID_CLASSES, CONFIDENCE_THRESHOLD, IOU_THRESHOLD
 
 
 class YOLODetector:
