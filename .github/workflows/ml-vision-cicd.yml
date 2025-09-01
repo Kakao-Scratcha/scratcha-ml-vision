@@ -79,6 +79,7 @@ jobs:
                         sudo docker run -d --name ml_vision_dev \
                           -p 8000:8000 \
                           --gpus all \
+                          --network host \
                           --env-file /home/ubuntu/.env \
                           ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}" 2>&1
 
