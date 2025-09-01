@@ -28,6 +28,18 @@ client = boto3.client(
 quiz_bucket_name = os.getenv("BUCKET_NAME")
 dev_bucket_name = os.getenv("DEV_BUCKET_NAME")
 
+# 클라이언트 연결 테스트 및 로그
+try:
+    print("boto3 클라이언트 연결 테스트 중...")
+    print(f"  - 엔드포인트: https://objectstorage.kr-central-2.kakaocloud.com")
+    print(f"  - 퀴즈 버킷: {quiz_bucket_name}")
+    print(f"  - 개발 버킷: {dev_bucket_name}")
+    print(f"  - 연결 타임아웃: {config.connect_timeout}초")
+    print(f"  - 읽기 타임아웃: {config.read_timeout}초")
+    print("✓ boto3 클라이언트 초기화 완료")
+except Exception as e:
+    print(f"✗ boto3 클라이언트 초기화 실패: {e}")
+
 # 기존 호환성을 위한 변수
 bucket_name = quiz_bucket_name
 

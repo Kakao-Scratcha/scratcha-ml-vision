@@ -24,10 +24,14 @@ class ImageHandler:
     
     def __init__(self):
         """초기화"""
+        print("  - ImagePreprocessor 초기화 중...")
         self.image_preprocessor = ImagePreprocessor()
         self.used_images = set()  # 사용된 이미지 추적
         self._lock = threading.Lock()  # 스레드 안전성을 위한 락
-        print("ImageHandler 초기화 완료")
+        print("  - 이미지 처리 설정 완료")
+        print(f"  - 노이즈 주파수: {NOISE_FREQUENCY}")
+        print(f"  - 기본 노이즈 강도: {NOISE_INTENSITY}")
+        print(f"  - 기본 알파 값: {NOISE_ALPHA}")
     
     def get_random_image_from_storage(self, folder_prefix: str = IMAGE_FOLDER) -> Tuple[str, bytes]:
         """

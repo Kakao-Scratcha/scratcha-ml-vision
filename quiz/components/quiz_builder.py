@@ -18,7 +18,11 @@ class QuizBuilder:
     
     def __init__(self):
         """초기화"""
-        print("QuizBuilder 초기화 완료")
+        print("  - 퀴즈 생성 설정 로딩 중...")
+        print(f"  - 지원 클래스 수: {len(VALID_CLASSES)}개")
+        print(f"  - 신뢰도 임계값: {CONFIDENCE_THRESHOLD}")
+        print(f"  - IoU 임계값: {IOU_THRESHOLD}")
+        print("  - 퀴즈 빌더 준비 완료")
     
     def select_correct_answer(self, detected_objects: List[Dict], 
                             confidence_threshold: float = CONFIDENCE_THRESHOLD, 

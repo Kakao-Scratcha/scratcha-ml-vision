@@ -29,26 +29,49 @@ class ObjectDetectionQuizGenerator:
         """
         초기화 - 각 컴포넌트 인스턴스 생성
         """
-        print("CAPTCHA 퀴즈 생성기 초기화 중...")
+        print("\n=== CAPTCHA 퀴즈 생성기 초기화 시작 ===")
         
-        # 스토리지 및 모델 관리자 초기화
+        # 1단계: 스토리지 관리자 초기화
+        print("1단계: StorageManager 초기화 중...")
         self.storage_manager = StorageManager()
-        self.model_manager = ModelManager()
+        print("✓ StorageManager 초기화 완료")
         
-        # 모델 준비 확인
+        # 2단계: 모델 관리자 초기화
+        print("\n2단계: ModelManager 초기화 중...")
+        self.model_manager = ModelManager()
+        print("✓ ModelManager 초기화 완료")
+        
+        # 3단계: 모델 준비 및 다운로드
+        print("\n3단계: ML 모델 준비 중...")
         if not self.model_manager.ensure_models_available():
             raise RuntimeError("ML 모델을 준비할 수 없습니다.")
+        print("✓ ML 모델 준비 완료")
         
-        # 컴포넌트 초기화 (모델 경로는 ModelManager에서 가져옴)
-        model_paths = self.model_manager.get_model_paths()
+        # 4단계: 데이터베이스 관리자 초기화
+        print("\n4단계: DatabaseManager 초기화 중...")
         self.db_manager = DatabaseManager()
-        self.yolo_detector = YOLODetector(model_paths['train_model'], model_paths['basic_model'])
-        self.image_handler = ImageHandler()
-        self.quiz_builder = QuizBuilder()
+        print("✓ DatabaseManager 초기화 완료")
         
-        print("모든 컴포넌트 초기화 완료!")
-        print(f"  - 훈련된 모델: {model_paths['train_model']}")
-        print(f"  - 기본 모델: {model_paths['basic_model']}")
+        # 5단계: YOLO 검출기 초기화
+        print("\n5단계: YOLO 검출기 초기화 중...")
+        model_paths = self.model_manager.get_model_paths()
+        print(f"  - 훈련된 모델 경로: {model_paths['train_model']}")
+        print(f"  - 기본 모델 경로: {model_paths['basic_model']}")
+        self.yolo_detector = YOLODetector(model_paths['train_model'], model_paths['basic_model'])
+        print("✓ YOLO 검출기 초기화 완료")
+        
+        # 6단계: 이미지 핸들러 초기화
+        print("\n6단계: ImageHandler 초기화 중...")
+        self.image_handler = ImageHandler()
+        print("✓ ImageHandler 초기화 완료")
+        
+        # 7단계: 퀴즈 빌더 초기화
+        print("\n7단계: QuizBuilder 초기화 중...")
+        self.quiz_builder = QuizBuilder()
+        print("✓ QuizBuilder 초기화 완료")
+        
+        print("\n=== CAPTCHA 퀴즈 생성기 초기화 완료 ===")
+        print("🎉 모든 컴포넌트가 성공적으로 초기화되었습니다!")
     
     def generate_quiz_with_difficulty(self, difficulty: str, image_folder: str = ORIGINAL_IMAGE_FOLDER) -> Dict:
         """
