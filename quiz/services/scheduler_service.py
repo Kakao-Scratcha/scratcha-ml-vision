@@ -12,7 +12,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.interval import IntervalTrigger
 from apscheduler.triggers.cron import CronTrigger
 
-from object_detection_quiz_generator import ObjectDetectionQuizGenerator
+# ObjectDetectionQuizGenerator는 지연 로딩으로 처리
 from config.settings import (
     SCHEDULE_ENABLED, 
     SCHEDULE_INTERVAL_HOURS, 
@@ -45,8 +45,20 @@ class SchedulerService:
         """퀴즈 생성기 지연 로딩"""
         if self.quiz_generator is None:
             logger.info("퀴즈 생성기 초기화 중...")
-            self.quiz_generator = ObjectDetectionQuizGenerator()
-            logger.info("퀴즈 생성기 초기화 완료")
+            try:
+                logger.info("ObjectDetectionQuizGenerator import 시작...")
+                from object_detection_quiz_generator import ObjectDetectionQuizGenerator
+                logger.info("ObjectDetectionQuizGenerator import 완료")
+                
+                logger.info("ObjectDetectionQuizGenerator 인스턴스 생성 시작...")
+                self.quiz_generator = ObjectDetectionQuizGenerator()
+                logger.info("퀴즈 생성기 초기화 완료")
+            except Exception as e:
+                logger.error(f"퀴즈 생성기 초기화 실패: {e}")
+                logger.error(f"상세 오류: {type(e).__name__}: {str(e)}")
+                import traceback
+                logger.error(f"스택 트레이스: {traceback.format_exc()}")
+                raise
         return self.quiz_generator
     
     async def start_scheduler(self) -> Dict[str, Any]:
