@@ -21,8 +21,11 @@ RUN pip install --no-cache-dir -r requirements.txt
 # 애플리케이션 코드 복사
 COPY . .
 
+# quiz 디렉토리로 작업 디렉토리 변경
+WORKDIR /app/quiz
+
 # Python 경로 설정
-ENV PYTHONPATH=/app
+ENV PYTHONPATH=/app/quiz
 
 # 모델 저장 디렉토리 생성
 RUN mkdir -p /tmp/models/train_tf /tmp/models/yolo11x_tf
@@ -31,5 +34,5 @@ RUN mkdir -p /tmp/models/train_tf /tmp/models/yolo11x_tf
 EXPOSE 8000
 
 # 컨테이너 시작 시 FastAPI 서버 실행
-CMD ["python", "-m", "uvicorn", "quiz.fastapi_app:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["python", "-m", "uvicorn", "fastapi_app:app", "--host", "0.0.0.0", "--port", "8000"]
 
