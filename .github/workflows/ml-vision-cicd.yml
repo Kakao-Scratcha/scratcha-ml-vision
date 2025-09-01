@@ -122,14 +122,14 @@ jobs:
             - name: Update ML Vision Helm values.yaml
               run: |
                   # ml-vision-chart의 values.yaml에서 이미지 태그 업데이트
-                  sed -i "s|tag:.*|tag: \"${{ env.IMAGE_TAG }}\"|" ${{ secrets.REPO_PATH }}/helm-chart/ml-vision-chart/values.yaml
+                  sed -i "s|tag:.*|tag: \"${{ env.IMAGE_TAG }}\"|" ${{ secrets.REPO_PATH }}/${{ secrets.HELM_CHART_PATH }}/values.yaml
 
             - name: Commit & Push ML Vision changes
               run: |
                   cd ${{ secrets.REPO_PATH }}
                   git config user.name "github-actions"
                   git config user.email "actions@github.com"
-                  git add ${{ secrets.REPO_PATH }}/helm-chart/ml-vision-chart/values.yaml
+                  git add ${{ secrets.HELM_CHART_PATH }}/values.yaml
                   git commit -m "Update ML Vision image tag to ${{ env.IMAGE_TAG }}"
                   git push origin main
 
