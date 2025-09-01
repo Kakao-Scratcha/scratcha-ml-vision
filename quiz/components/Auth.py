@@ -1,15 +1,27 @@
 import boto3
 import os
+from botocore.config import Config
 from dotenv import load_dotenv
 
 load_dotenv()
 
-client = boto3.client(
+# Kakao Cloud Object Storage 연결 설정 최적화
+config = Config(
     region_name="kr-central-2",
+    read_timeout=300,  # 읽기 타임아웃 5분
+    connect_timeout=120,  # 연결 타임아웃 2분
+    retries={
+        'max_attempts': 5,
+        'mode': 'adaptive'
+    }
+)
+
+client = boto3.client(
     endpoint_url="https://objectstorage.kr-central-2.kakaocloud.com",
     aws_access_key_id=os.getenv("S3_ACCESS_KEY"),
     aws_secret_access_key=os.getenv("S3_SECRET_ACCESS_KEY"),
-    service_name="s3"
+    service_name="s3",
+    config=config
 )
 
 # 버킷 이름
