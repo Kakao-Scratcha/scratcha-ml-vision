@@ -28,7 +28,7 @@ class SchedulerService:
     def __init__(self):
         """초기화"""
         self.scheduler = AsyncIOScheduler(timezone=SCHEDULE_TIMEZONE)
-        self.quiz_generator = ObjectDetectionQuizGenerator()
+        self.quiz_generator = None  # 지연 로딩
         self.is_running = False
         self.last_execution = None
         self.next_execution = None
@@ -40,6 +40,14 @@ class SchedulerService:
             level=logging.INFO,
             format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
         )
+    
+    def _ensure_quiz_generator(self):
+        """퀴즈 생성기 지연 로딩"""
+        if self.quiz_generator is None:
+            logger.info("퀴즈 생성기 초기화 중...")
+            self.quiz_generator = ObjectDetectionQuizGenerator()
+            logger.info("퀴즈 생성기 초기화 완료")
+        return self.quiz_generator
     
     async def start_scheduler(self) -> Dict[str, Any]:
         """스케줄러 시작"""
@@ -144,8 +152,11 @@ class SchedulerService:
         try:
             logger.info("수동 퀴즈 생성 실행 시작")
             
+            # 퀴즈 생성기 지연 로딩
+            quiz_generator = self._ensure_quiz_generator()
+            
             start_time = datetime.now()
-            total_generated = await self.quiz_generator.generate_scheduled_quizzes(SCHEDULED_QUIZ_COUNTS)
+            total_generated = await quiz_generator.generate_scheduled_quizzes(SCHEDULED_QUIZ_COUNTS)
             end_time = datetime.now()
             execution_time = (end_time - start_time).total_seconds()
             
@@ -176,8 +187,11 @@ class SchedulerService:
         try:
             logger.info("정기 퀴즈 생성 시작")
             
+            # 퀴즈 생성기 지연 로딩
+            quiz_generator = self._ensure_quiz_generator()
+            
             start_time = datetime.now()
-            total_generated = await self.quiz_generator.generate_scheduled_quizzes(SCHEDULED_QUIZ_COUNTS)
+            total_generated = await quiz_generator.generate_scheduled_quizzes(SCHEDULED_QUIZ_COUNTS)
             end_time = datetime.now()
             execution_time = (end_time - start_time).total_seconds()
             

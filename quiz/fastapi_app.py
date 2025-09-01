@@ -62,9 +62,10 @@ async def lifespan(app: FastAPI):
     logger.info("FastAPI 애플리케이션 시작 중...")
     
     try:
-        # 스케줄러 서비스 초기화
+        # 스케줄러 서비스 초기화 (지연 로딩으로 빠르게 시작)
         await init_scheduler_service()
-        logger.info("스케줄러 서비스 초기화 완료")
+        logger.info("FastAPI 서버 시작 완료")
+        logger.info("스케줄러 서비스 초기화 완료 (퀴즈 생성기는 필요시 로딩)")
         
         yield
         
