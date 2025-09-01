@@ -7,7 +7,7 @@ import pymysql
 import threading
 from datetime import datetime, timedelta
 from typing import Dict
-from config.settings import DB_CONFIG, DIFFICULTY_TO_NUMBER, PROMPT
+from ..config.settings import DB_CONFIG, DIFFICULTY_TO_NUMBER, PROMPT
 
 
 class DatabaseManager:

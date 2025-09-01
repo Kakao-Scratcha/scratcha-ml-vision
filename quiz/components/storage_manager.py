@@ -12,7 +12,7 @@ from .Auth import (
     download_file, download_dev_file,
     delete_object, delete_dev_object
 )
-from config.settings import MODEL_DOWNLOAD_TIMEOUT, MODEL_DOWNLOAD_RETRY
+from ..config.settings import MODEL_DOWNLOAD_TIMEOUT, MODEL_DOWNLOAD_RETRY
 
 class StorageManager:
     """오브젝트 스토리지 분리 관리 클래스"""

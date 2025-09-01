@@ -6,7 +6,7 @@ import os
 import time
 from typing import Optional
 from .storage_manager import StorageManager
-from config.settings import MODEL_PATH, BASIC_MODEL_PATH, MODEL_DOWNLOAD_TIMEOUT
+from ..config.settings import MODEL_PATH, BASIC_MODEL_PATH, MODEL_DOWNLOAD_TIMEOUT
 
 class ModelManager:
     """ML 모델 다운로드 및 관리 클래스"""
