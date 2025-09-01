@@ -79,6 +79,7 @@ jobs:
                         sudo docker run -d --name ml_vision_dev \
                           -p 8000:8000 \
                           --gpus all \
+                          --env-file /home/ubuntu/.env \
                           ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}" 2>&1
 
     # 메인 브랜치에 푸시될 때 Kubernetes(ArgoCD)로 배포하는 잡
