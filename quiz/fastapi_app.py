@@ -20,7 +20,8 @@ from .config.settings import (
     API_PORT, 
     SCHEDULE_ENABLED,
     SCHEDULE_INTERVAL_HOURS,
-    SCHEDULED_QUIZ_COUNTS
+    SCHEDULED_QUIZ_COUNTS,
+    SCHEDULED_QUIZ_COUNT
 )
 
 # 로깅 설정
@@ -211,6 +212,7 @@ async def get_quiz_config():
         data={
             "schedule_enabled": SCHEDULE_ENABLED,
             "schedule_interval_hours": SCHEDULE_INTERVAL_HOURS,
+            "scheduled_quiz_count": SCHEDULED_QUIZ_COUNT,
             "scheduled_quiz_counts": SCHEDULED_QUIZ_COUNTS,
             "api_host": API_HOST,
             "api_port": API_PORT

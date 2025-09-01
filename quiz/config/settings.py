@@ -123,9 +123,10 @@ SCHEDULE_ENABLED = os.getenv('SCHEDULE_ENABLED', 'true').lower() == 'true'
 SCHEDULE_INTERVAL_HOURS = int(os.getenv('SCHEDULE_INTERVAL_HOURS', 8))  # 8시간마다 실행
 SCHEDULE_TIMEZONE = os.getenv('SCHEDULE_TIMEZONE', 'Asia/Seoul')
 
-# 스케줄링용 퀴즈 생성 수량 (크론잡 모드의 1/3)
+# 스케줄링용 퀴즈 생성 수량 (난이도별 동일)
+SCHEDULED_QUIZ_COUNT = int(os.getenv('SCHEDULED_QUIZ_COUNT', 3))  # 난이도별 생성할 퀴즈 개수
 SCHEDULED_QUIZ_COUNTS = {
-    'high': max(1, MAX_RETRY_ATTEMPTS // 3),
-    'middle': max(1, MAX_RETRY_ATTEMPTS // 3),
-    'low': max(1, MAX_RETRY_ATTEMPTS // 3)
+    'high': SCHEDULED_QUIZ_COUNT,
+    'middle': SCHEDULED_QUIZ_COUNT,
+    'low': SCHEDULED_QUIZ_COUNT
 }

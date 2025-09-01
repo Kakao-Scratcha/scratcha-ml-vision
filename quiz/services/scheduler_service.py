@@ -12,7 +12,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.interval import IntervalTrigger
 from apscheduler.triggers.cron import CronTrigger
 
-from cronjob_quiz_generator import CronJobQuizGenerator
+from object_detection_quiz_generator import ObjectDetectionQuizGenerator
 from config.settings import (
     SCHEDULE_ENABLED, 
     SCHEDULE_INTERVAL_HOURS, 
@@ -28,7 +28,7 @@ class SchedulerService:
     def __init__(self):
         """초기화"""
         self.scheduler = AsyncIOScheduler(timezone=SCHEDULE_TIMEZONE)
-        self.quiz_generator = CronJobQuizGenerator()
+        self.quiz_generator = ObjectDetectionQuizGenerator()
         self.is_running = False
         self.last_execution = None
         self.next_execution = None

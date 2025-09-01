@@ -238,6 +238,61 @@ class ObjectDetectionQuizGenerator:
                 print(f"경고: {difficulty.upper()} {i+1}번째 실패: {result}")
         
         return successful_quizzes
+    
+    async def generate_scheduled_quizzes(self, target_counts=None):
+        """        
+        Args:
+            target_counts: 난이도별 생성할 개수 (None이면 설정 파일 사용)
+        """
+        if target_counts is None:
+            # 기본 설정값 사용 (난이도별 동일한 수량)
+            from config.settings import SCHEDULED_QUIZ_COUNT
+            target_counts = {
+                'high': SCHEDULED_QUIZ_COUNT,
+                'middle': SCHEDULED_QUIZ_COUNT,
+                'low': SCHEDULED_QUIZ_COUNT
+            }
+        
+        print(f"\n=== 스케줄된 퀴즈 생성 시작 [{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] ===")
+        print(f"목표 생성 수량:")
+        for difficulty, count in target_counts.items():
+            print(f"  - {difficulty.upper()}: {count}개")
+        
+        total_generated = 0
+        
+        try:
+            # 각 난이도별로 순차 생성
+            for difficulty, target_count in target_counts.items():
+                print(f"\n{difficulty.upper()} 난이도 퀴즈 {target_count}개 생성 시작...")
+                
+                generated_count = 0
+                for i in range(target_count):
+                    try:
+                        print(f"  {difficulty.upper()} {i+1}/{target_count} 생성 중...")
+                        quiz = self.generate_quiz_with_difficulty(difficulty)
+                        
+                        if quiz:
+                            generated_count += 1
+                            total_generated += 1
+                            print(f"  ✓ {difficulty.upper()} {generated_count}/{target_count} 완료 - 정답: {quiz['correct_answer']}")
+                        else:
+                            print(f"  ✗ {difficulty.upper()} {i+1}번째 생성 실패")
+                            
+                    except Exception as e:
+                        print(f"  ✗ {difficulty.upper()} {i+1}번째 생성 중 오류: {e}")
+                        continue
+                
+                print(f"{difficulty.upper()} 난이도 완료: {generated_count}/{target_count}개 생성")
+            
+            print(f"\n=== 스케줄된 퀴즈 생성 완료 ===")
+            print(f"총 생성된 퀴즈: {total_generated}개")
+            print(f"완료 시간: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+            
+            return total_generated
+            
+        except Exception as e:
+            print(f"✗ 퀴즈 생성 중 치명적 오류: {e}")
+            raise
 
 
 async def main():
