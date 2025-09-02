@@ -3,7 +3,7 @@ import numpy as np
 from typing import Tuple
 
 # 기본 이미지 크기 설정
-IMAGE_SIZE = 500
+IMAGE_SIZE = 300
 
 
 
@@ -135,4 +135,78 @@ class ImagePreprocessor:
         blended = (1 - alpha) * image_float + alpha * noise_float
         
         return np.clip(blended, 0, 255).astype(np.uint8)
+    
+    def hybridDenoising(self, noisy_image: np.ndarray, denoise_strength: str = 'medium') -> np.ndarray:
+        """
+        하이브리드 디노이징 (가우시안 블러 + 바이레터럴 필터 + 메디안 필터 조합)
+        
+        Args:
+            noisy_image: 노이즈가 있는 이미지
+            denoise_strength: 디노이징 강도 ('light', 'medium', 'strong')
+            
+        Returns:
+            디노이징된 이미지
+        """
+        # 강도별 파라미터 설정
+        if denoise_strength == 'light':
+            gaussian_kernel = (3, 3)
+            gaussian_sigma = 0.5
+            bilateral_d = 5
+            bilateral_sigma = 30
+            median_kernel = 3
+        elif denoise_strength == 'medium':
+            gaussian_kernel = (5, 5)
+            gaussian_sigma = 1.0
+            bilateral_d = 7
+            bilateral_sigma = 50
+            median_kernel = 3
+        elif denoise_strength == 'strong':
+            gaussian_kernel = (7, 7)
+            gaussian_sigma = 1.5
+            bilateral_d = 9
+            bilateral_sigma = 75
+            median_kernel = 5
+        else:
+            # 기본값 (medium)
+            gaussian_kernel = (5, 5)
+            gaussian_sigma = 1.0
+            bilateral_d = 7
+            bilateral_sigma = 50
+            median_kernel = 3
+        
+        # 1단계: 가우시안 블러 (전체적인 노이즈 감소)
+        step1 = cv2.GaussianBlur(noisy_image, gaussian_kernel, gaussian_sigma)
+        
+        # 2단계: 바이레터럴 필터 (엣지 보존하면서 노이즈 제거)
+        step2 = cv2.bilateralFilter(step1, bilateral_d, bilateral_sigma, bilateral_sigma)
+        
+        # 3단계: 메디안 필터 (솔트앤페퍼 노이즈 제거)
+        step3 = cv2.medianBlur(step2, median_kernel)
+        
+        return step3
+    
+    def adaptiveDenoising(self, noisy_image: np.ndarray) -> np.ndarray:
+        """
+        적응형 디노이징 (이미지 특성에 따라 자동 조정)
+        
+        Args:
+            noisy_image: 노이즈가 있는 이미지
+            
+        Returns:
+            디노이징된 이미지
+        """
+        # 이미지 노이즈 레벨 추정
+        gray = cv2.cvtColor(noisy_image, cv2.COLOR_BGR2GRAY)
+        laplacian_var = cv2.Laplacian(gray, cv2.CV_64F).var()
+        
+        # 노이즈 레벨에 따른 강도 결정
+        if laplacian_var < 100:
+            strength = 'light'
+        elif laplacian_var < 500:
+            strength = 'medium'
+        else:
+            strength = 'strong'
+            
+        print(f"   적응형 디노이징: 노이즈 레벨 {laplacian_var:.1f} -> {strength} 강도 적용")
+        return self.hybridDenoising(noisy_image, strength)
 

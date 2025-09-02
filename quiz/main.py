@@ -10,6 +10,26 @@ from contextlib import asynccontextmanager
 from datetime import datetime
 from typing import Dict, Any, Optional
 
+# TensorFlow GPU 설정을 애플리케이션 시작 시 전역적으로 수행
+import tensorflow as tf
+
+def configure_tensorflow_gpu():
+    """TensorFlow GPU 설정 (애플리케이션 시작 시 실행)"""
+    try:
+        gpus = tf.config.list_physical_devices('GPU')
+        if gpus:
+            print(f"[시스템] GPU 사용 가능: {len(gpus)}개")
+            for gpu in gpus:
+                tf.config.experimental.set_memory_growth(gpu, True)
+            print("[시스템] TensorFlow GPU 메모리 성장 설정 완료")
+        else:
+            print("[시스템] CPU 모드로 실행")
+    except Exception as e:
+        print(f"[시스템] GPU 설정 중 오류 (무시됨): {e}")
+
+# GPU 설정 실행
+configure_tensorflow_gpu()
+
 from fastapi import FastAPI, HTTPException, BackgroundTasks
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
@@ -77,18 +97,18 @@ async def lifespan(app: FastAPI):
 
 # FastAPI 앱 생성
 app = FastAPI(
-    title="퀴즈 생성 서비스",
-    description="CAPTCHA 퀴즈를 정기적으로 생성하는 FastAPI 서비스",
+    title="CAPTCHA 생성 서비스",
+    description="CAPTCHA 생성 서비스",
     version="1.0.0",
     lifespan=lifespan
 )
 
-@app.get("/", response_model=ApiResponse)
+@app.get("/", response_model=ApiResponse, tags=["root"], summary="API 상태 확인")
 async def root():
     """루트 엔드포인트"""
     return ApiResponse(
         status="success",
-        message="퀴즈 생성 서비스가 실행 중입니다.",
+        message="CAPTCHA 생성 서비스가 실행 중입니다.",
         data={
             "service": "quiz-generator",
             "version": "1.0.0",
@@ -97,7 +117,7 @@ async def root():
         }
     )
 
-@app.get("/health", response_model=ApiResponse)
+@app.get("/health", response_model=ApiResponse, tags=["root"], summary="서버 상태체크")
 async def health_check():
     """헬스체크 엔드포인트"""
     scheduler_service = get_scheduler_service()
@@ -113,7 +133,7 @@ async def health_check():
         }
     )
 
-@app.get("/quiz/status", response_model=ApiResponse)
+@app.get("/quiz/status", response_model=ApiResponse, tags=["captcha"], summary="CAPTCHA 생성 스케줄러 상태 조회")
 async def get_quiz_status():
     """퀴즈 생성 스케줄러 상태 조회"""
     try:
@@ -130,19 +150,19 @@ async def get_quiz_status():
         logger.error(f"스케줄러 상태 조회 실패: {e}")
         raise HTTPException(status_code=500, detail=f"상태 조회 실패: {str(e)}")
 
-@app.post("/quiz/generate", response_model=ApiResponse)
+@app.post("/quiz/generate", response_model=ApiResponse, tags=["captcha"], summary="CAPTCHA 수동 생성")
 async def generate_quiz_manual(
     request: QuizGenerationRequest,
     background_tasks: BackgroundTasks
 ):
-    """수동 퀴즈 생성 엔드포인트"""
+    """수동 CAPTCHA 생성 엔드포인트"""
     try:
         scheduler_service = get_scheduler_service()
         
         # 요청된 생성 수량이 있으면 사용, 없으면 기본값 사용
         target_counts = request.target_counts or SCHEDULED_QUIZ_COUNTS
         
-        logger.info(f"수동 퀴즈 생성 요청: {target_counts}")
+        logger.info(f"수동 CAPTCHA 생성 요청: {target_counts}")
         
         # 즉시 실행
         result = await scheduler_service.execute_now()
@@ -162,9 +182,9 @@ async def generate_quiz_manual(
             
     except Exception as e:
         logger.error(f"수동 퀴즈 생성 실패: {e}")
-        raise HTTPException(status_code=500, detail=f"퀴즈 생성 실패: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"CAPTCHA 생성 실패: {str(e)}")
 
-@app.post("/quiz/schedule/start", response_model=ApiResponse)
+@app.post("/quiz/schedule/start", response_model=ApiResponse, tags=["captcha"], summary="CAPTCHA 스케줄러 시작")
 async def start_scheduler():
     """스케줄러 시작"""
     try:
@@ -184,7 +204,7 @@ async def start_scheduler():
         logger.error(f"스케줄러 시작 실패: {e}")
         raise HTTPException(status_code=500, detail=f"스케줄러 시작 실패: {str(e)}")
 
-@app.post("/quiz/schedule/stop", response_model=ApiResponse)
+@app.post("/quiz/schedule/stop", response_model=ApiResponse, tags=["captcha"], summary="CAPTCHA 스케줄러 중지")
 async def stop_scheduler():
     """스케줄러 중지"""
     try:
@@ -204,12 +224,12 @@ async def stop_scheduler():
         logger.error(f"스케줄러 중지 실패: {e}")
         raise HTTPException(status_code=500, detail=f"스케줄러 중지 실패: {str(e)}")
 
-@app.get("/quiz/config", response_model=ApiResponse)
+@app.get("/quiz/config", response_model=ApiResponse, tags=["captcha"], summary="CAPTCHA 생성 설정 조회")
 async def get_quiz_config():
-    """퀴즈 생성 설정 조회"""
+    """CAPTCHA 생성 설정 조회"""
     return ApiResponse(
         status="success",
-        message="퀴즈 생성 설정 조회 완료",
+        message="CAPTCHA 생성 설정 조회 완료",
         data={
             "schedule_enabled": SCHEDULE_ENABLED,
             "schedule_interval_hours": SCHEDULE_INTERVAL_HOURS,
@@ -238,15 +258,15 @@ async def global_exception_handler(request, exc):
 if __name__ == "__main__":
     import uvicorn
     
-    logger.info(f"퀴즈 생성 서비스 시작 - http://{API_HOST}:{API_PORT}")
+    logger.info(f"퀴즈 생성 서비스 시작 - http://0.0.0.0:8000")
     logger.info(f"스케줄링 활성화: {SCHEDULE_ENABLED}")
     logger.info(f"스케줄링 간격: {SCHEDULE_INTERVAL_HOURS}시간")
     logger.info(f"기본 생성 수량: {SCHEDULED_QUIZ_COUNTS}")
     
     uvicorn.run(
-        "fastapi_app:app",
-        host=API_HOST,
-        port=API_PORT,
+        "main:app",
+        host="0.0.0.0",
+        port=8000,
         reload=False,
         log_level="info"
     )

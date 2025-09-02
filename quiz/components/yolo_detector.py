@@ -7,6 +7,7 @@ import numpy as np
 import tensorflow as tf
 from typing import List, Dict
 from config.settings import VALID_CLASSES, CONFIDENCE_THRESHOLD, IOU_THRESHOLD
+from .image_preprocessor import ImagePreprocessor
 
 
 class YOLODetector:
@@ -21,6 +22,9 @@ class YOLODetector:
             basic_model_path: 기본 TensorFlow YOLO 모델 경로 (검증용)
         """
         print("TensorFlow YOLO 검출기 초기화 중...")
+        
+        # GPU 설정을 모델 로딩 전에 먼저 수행
+        self._configure_gpu()
         
         # 모델 경로 검증
         self._validate_model_paths(model_path, basic_model_path)
@@ -50,22 +54,13 @@ class YOLODetector:
             print(f"✗ 기본 TensorFlow YOLO 모델 로딩 실패: {e}")
             raise
         
-        # GPU 사용 가능 여부 확인
-        gpus = tf.config.list_physical_devices('GPU')
-        if gpus:
-            print(f"✓ GPU 사용 가능: {len(gpus)}개")
-            for i, gpu in enumerate(gpus):
-                print(f"  GPU {i}: {gpu}")
-            # GPU 메모리 성장 설정
-            try:
-                for gpu in gpus:
-                    tf.config.experimental.set_memory_growth(gpu, True)
-            except RuntimeError as e:
-                print(f"GPU 메모리 설정 오류: {e}")
-        else:
-            print("✓ CPU 모드로 실행")
+        # train_tf 모델의 실제 16개 클래스 매핑 (커스텀 학습 모델)
+        self.train_tf_classes = [
+            'backpack', 'bear', 'bed', 'bird', 'boat', 'bottle', 'car', 'cat',
+            'chair', 'clock', 'cow', 'cup', 'dog', 'elephant', 'refrigerator', 'sheep'
+        ]
         
-        # COCO 클래스 이름 매핑 (YOLO 표준)
+        # COCO 클래스 이름 매핑 (yolo11x_tf 모델용 - YOLO 표준 80개 클래스)
         self.coco_classes = [
             'person', 'bicycle', 'car', 'motorcycle', 'airplane', 'bus', 'train', 'truck', 'boat',
             'traffic light', 'fire hydrant', 'stop sign', 'parking meter', 'bench', 'bird', 'cat',
@@ -80,9 +75,41 @@ class YOLODetector:
             'toothbrush'
         ]
         
+        # 디노이징을 위한 ImagePreprocessor 인스턴스
+        self.image_preprocessor = ImagePreprocessor()
+        
         print("TensorFlow YOLO 검출기 초기화 완료!")
     
-    def _preprocess_image(self, image_bytes: bytes) -> tf.Tensor:
+    def _configure_gpu(self):
+        """
+        GPU 메모리 설정 (모델 로딩 전에 실행되어야 함)
+        """
+        try:
+            # GPU 사용 가능 여부 확인
+            gpus = tf.config.list_physical_devices('GPU')
+            if gpus:
+                print(f"✓ GPU 사용 가능: {len(gpus)}개")
+                for i, gpu in enumerate(gpus):
+                    print(f"  GPU {i}: {gpu}")
+                
+                # GPU 메모리 성장 설정 (물리적 장치 초기화 전에 설정)
+                for gpu in gpus:
+                    tf.config.experimental.set_memory_growth(gpu, True)
+                print("✓ GPU 메모리 성장 설정 완료")
+            else:
+                print("✓ CPU 모드로 실행")
+                
+        except RuntimeError as e:
+            # 이미 초기화된 경우의 오류 메시지를 더 명확하게 표시
+            if "Physical devices cannot be modified" in str(e):
+                print("⚠ GPU가 이미 초기화되어 메모리 성장 설정을 건너뜁니다.")
+                print("  (이는 정상적인 동작이며 성능에 영향을 주지 않습니다)")
+            else:
+                print(f"GPU 설정 중 오류: {e}")
+        except Exception as e:
+            print(f"GPU 설정 중 예상치 못한 오류: {e}")
+    
+    def _preprocess_image(self, image_bytes: bytes):
         """
         이미지 전처리
         
@@ -155,9 +182,9 @@ class YOLODetector:
                 
                 # 신뢰도 임계값 확인
                 if max_confidence >= CONFIDENCE_THRESHOLD:
-                    # 클래스 이름 가져오기
-                    if max_class_idx < len(self.coco_classes):
-                        class_name = self.coco_classes[max_class_idx]
+                    # train_tf 모델용 클래스 이름 가져오기 (16개 클래스)
+                    if max_class_idx < len(self.train_tf_classes):
+                        class_name = self.train_tf_classes[max_class_idx]
                         
                         # VALID_CLASSES에 포함된 클래스만 처리
                         if class_name in VALID_CLASSES:
@@ -340,6 +367,284 @@ class YOLODetector:
                 
         except Exception as e:
             return True  # 오류 발생 시 다른 결과로 간주
+    
+    def validate_with_hybrid_denoising(self, processed_image_bytes: bytes, current_answer: Dict, 
+                                     denoise_strength: str = 'medium') -> Dict:
+        """
+        하이브리드 디노이징을 적용한 후 기본 모델로 검증
+        
+        Args:
+            processed_image_bytes: 노이즈 처리된 이미지 바이트 데이터
+            current_answer: 현재 모델이 선택한 정답 객체
+            denoise_strength: 디노이징 강도 ('light', 'medium', 'strong')
+            
+        Returns:
+            Dict: 검증 결과 정보
+        """
+        try:
+            print(f" 하이브리드 디노이징 검증 시작 (강도: {denoise_strength})")
+            
+            # 1. 노이즈 이미지를 numpy 배열로 변환
+            nparr = np.frombuffer(processed_image_bytes, np.uint8)
+            noisy_image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+            
+            if noisy_image is None:
+                raise ValueError("노이즈 이미지를 읽을 수 없습니다.")
+            
+            # 2. 하이브리드 디노이징 적용
+            denoised_image = self.image_preprocessor.hybridDenoising(noisy_image, denoise_strength)
+            
+            # 3. 디노이징된 이미지를 바이트로 변환
+            success, encoded_image = cv2.imencode('.jpg', denoised_image)
+            if not success:
+                raise ValueError("디노이징된 이미지 인코딩에 실패했습니다.")
+            denoised_image_bytes = encoded_image.tobytes()
+            
+            # 4. 기본 모델로 디노이징된 이미지 검출
+            denoised_detected_objects = self.detect_objects_with_basic_model(denoised_image_bytes)
+            
+            # 5. 원본 노이즈 이미지로도 검출 (비교용)
+            noisy_detected_objects = self.detect_objects_with_basic_model(processed_image_bytes)
+            
+            # 6. 결과 분석
+            result = {
+                'is_different_from_current': False,
+                'denoising_improved': False,
+                'current_answer': current_answer,
+                'noisy_detection': None,
+                'denoised_detection': None,
+                'confidence_improvement': 0.0,
+                'denoise_strength': denoise_strength
+            }
+            
+            # 노이즈 이미지 검출 결과
+            if noisy_detected_objects:
+                noisy_best = max(noisy_detected_objects, key=lambda x: x['confidence'])
+                result['noisy_detection'] = noisy_best
+            
+            # 디노이징 이미지 검출 결과
+            if denoised_detected_objects:
+                denoised_best = max(denoised_detected_objects, key=lambda x: x['confidence'])
+                result['denoised_detection'] = denoised_best
+                
+                # 신뢰도 임계값 확인
+                if denoised_best['confidence'] >= CONFIDENCE_THRESHOLD:
+                    # 현재 모델과 다른 결과인지 확인
+                    if denoised_best['class_name'] != current_answer['class_name']:
+                        result['is_different_from_current'] = True
+                    
+                    # 디노이징이 개선되었는지 확인
+                    if result['noisy_detection']:
+                        confidence_diff = denoised_best['confidence'] - result['noisy_detection']['confidence']
+                        result['confidence_improvement'] = confidence_diff
+                        if confidence_diff > 0.05:  # 5% 이상 개선
+                            result['denoising_improved'] = True
+                
+                # 결과 출력
+                print(f" 디노이징 검증 결과:")
+                print(f" - 현재 모델 정답: {current_answer['class_name']} (신뢰도: {current_answer['confidence']:.3f})")
+                
+                if result['noisy_detection']:
+                    print(f" - 노이즈 이미지 검출: {result['noisy_detection']['class_name']} "
+                          f"(신뢰도: {result['noisy_detection']['confidence']:.3f})")
+                
+                print(f" - 디노이징 이미지 검출: {denoised_best['class_name']} "
+                      f"(신뢰도: {denoised_best['confidence']:.3f})")
+                print(f" - 신뢰도 개선: {result['confidence_improvement']:+.3f}")
+                print(f" - 디노이징 효과: {'있음' if result['denoising_improved'] else '없음'}")
+                print(f" - 현재 모델과 다른 결과: {'예' if result['is_different_from_current'] else '아니오'}")
+            
+            return result
+            
+        except Exception as e:
+            print(f"하이브리드 디노이징 검증 중 오류: {e}")
+            return {
+                'is_different_from_current': True,
+                'denoising_improved': False,
+                'current_answer': current_answer,
+                'noisy_detection': None,
+                'denoised_detection': None,
+                'confidence_improvement': 0.0,
+                'denoise_strength': denoise_strength,
+                'error': str(e)
+            }
+    
+    def validate_with_adaptive_denoising(self, processed_image_bytes: bytes, current_answer: Dict) -> Dict:
+        """
+        적응형 디노이징을 적용한 후 기본 모델로 검증
+        
+        Args:
+            processed_image_bytes: 노이즈 처리된 이미지 바이트 데이터
+            current_answer: 현재 모델이 선택한 정답 객체
+            
+        Returns:
+            Dict: 검증 결과 정보
+        """
+        try:
+            print(f" 적응형 디노이징 검증 시작")
+            
+            # 1. 노이즈 이미지를 numpy 배열로 변환
+            nparr = np.frombuffer(processed_image_bytes, np.uint8)
+            noisy_image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+            
+            if noisy_image is None:
+                raise ValueError("노이즈 이미지를 읽을 수 없습니다.")
+            
+            # 2. 적응형 디노이징 적용
+            denoised_image = self.image_preprocessor.adaptiveDenoising(noisy_image)
+            
+            # 3. 디노이징된 이미지를 바이트로 변환
+            success, encoded_image = cv2.imencode('.jpg', denoised_image)
+            if not success:
+                raise ValueError("디노이징된 이미지 인코딩에 실패했습니다.")
+            denoised_image_bytes = encoded_image.tobytes()
+            
+            # 4. 하이브리드 디노이징 검증과 동일한 로직
+            return self.validate_with_hybrid_denoising(denoised_image_bytes, current_answer, 'adaptive')
+            
+        except Exception as e:
+            print(f"적응형 디노이징 검증 중 오류: {e}")
+            return {
+                'is_different_from_current': True,
+                'denoising_improved': False,
+                'current_answer': current_answer,
+                'noisy_detection': None,
+                'denoised_detection': None,
+                'confidence_improvement': 0.0,
+                'denoise_strength': 'adaptive',
+                'error': str(e)
+            }
+    
+    def comprehensive_validation(self, processed_image_bytes: bytes, current_answer: Dict) -> Dict:
+        """
+        종합 검증: 기존 검증 + 하이브리드 디노이징 검증 비교
+        
+        Args:
+            processed_image_bytes: 노이즈 처리된 이미지 바이트 데이터
+            current_answer: 현재 모델이 선택한 정답 객체
+            
+        Returns:
+            Dict: 종합 검증 결과
+        """
+        print("\n=== 종합 검증 시작 ===")
+        
+        # 1. 기존 검증 (노이즈 이미지 그대로)
+        print("\n[1단계] 기존 검증 (노이즈 이미지)")
+        basic_validation = self.validate_with_basic_model(processed_image_bytes, current_answer)
+        
+        # 2. 하이브리드 디노이징 검증 (여러 강도)
+        denoising_results = {}
+        denoise_strengths = ['light', 'medium', 'strong']
+        
+        for strength in denoise_strengths:
+            print(f"\n[2단계] 하이브리드 디노이징 검증 - {strength}")
+            denoising_results[strength] = self.validate_with_hybrid_denoising(
+                processed_image_bytes, current_answer, strength
+            )
+        
+        # 3. 적응형 디노이징 검증
+        print(f"\n[3단계] 적응형 디노이징 검증")
+        adaptive_result = self.validate_with_adaptive_denoising(processed_image_bytes, current_answer)
+        denoising_results['adaptive'] = adaptive_result
+        
+        # 4. 결과 분석
+        analysis = self._analyze_comprehensive_results(
+            basic_validation, denoising_results, current_answer
+        )
+        
+        # 5. 종합 결과 반환
+        comprehensive_result = {
+            'basic_validation': basic_validation,
+            'denoising_results': denoising_results,
+            'analysis': analysis,
+            'recommendation': self._get_validation_recommendation(analysis)
+        }
+        
+        print("\n=== 종합 검증 완료 ===")
+        self._print_comprehensive_summary(comprehensive_result)
+        
+        return comprehensive_result
+    
+    def _analyze_comprehensive_results(self, basic_validation: bool, denoising_results: Dict, 
+                                     current_answer: Dict) -> Dict:
+        """종합 검증 결과 분석"""
+        analysis = {
+            'basic_different': basic_validation,
+            'denoising_different_count': 0,
+            'best_denoising_method': None,
+            'max_confidence_improvement': 0.0,
+            'denoising_effectiveness': {},
+            'consistency_score': 0.0
+        }
+        
+        # 디노이징 결과 분석
+        different_methods = []
+        improvements = []
+        
+        for method, result in denoising_results.items():
+            if result.get('is_different_from_current', False):
+                analysis['denoising_different_count'] += 1
+                different_methods.append(method)
+            
+            improvement = result.get('confidence_improvement', 0.0)
+            improvements.append(improvement)
+            analysis['denoising_effectiveness'][method] = {
+                'improved': result.get('denoising_improved', False),
+                'confidence_improvement': improvement,
+                'different_from_current': result.get('is_different_from_current', False)
+            }
+        
+        # 최고 개선 방법 찾기
+        if improvements:
+            max_improvement = max(improvements)
+            analysis['max_confidence_improvement'] = max_improvement
+            
+            for method, result in denoising_results.items():
+                if result.get('confidence_improvement', 0.0) == max_improvement:
+                    analysis['best_denoising_method'] = method
+                    break
+        
+        # 일관성 점수 계산 (0-100)
+        total_methods = len(denoising_results) + 1  # +1 for basic
+        different_count = analysis['denoising_different_count'] + (1 if basic_validation else 0)
+        analysis['consistency_score'] = (different_count / total_methods) * 100
+        
+        return analysis
+    
+    def _get_validation_recommendation(self, analysis: Dict) -> str:
+        """검증 결과에 따른 권장사항"""
+        consistency = analysis['consistency_score']
+        best_method = analysis['best_denoising_method']
+        max_improvement = analysis['max_confidence_improvement']
+        
+        if consistency >= 80:
+            return f"높은 일관성 ({consistency:.1f}%) - 퀴즈 난이도가 적절합니다."
+        elif consistency >= 50:
+            if best_method and max_improvement > 0.1:
+                return f"중간 일관성 ({consistency:.1f}%) - {best_method} 디노이징으로 {max_improvement:.3f} 개선됨"
+            else:
+                return f"중간 일관성 ({consistency:.1f}%) - 추가 노이즈 조정 권장"
+        else:
+            return f"낮은 일관성 ({consistency:.1f}%) - 노이즈 파라미터 재조정 필요"
+    
+    def _print_comprehensive_summary(self, result: Dict):
+        """종합 검증 결과 요약 출력"""
+        print("\n=== 종합 검증 결과 요약 ===")
+        
+        analysis = result['analysis']
+        print(f"기본 검증 결과: {'다름' if analysis['basic_different'] else '같음'}")
+        print(f"디노이징 검증 중 다른 결과: {analysis['denoising_different_count']}/4개 방법")
+        print(f"최고 개선 방법: {analysis['best_denoising_method']}")
+        print(f"최대 신뢰도 개선: {analysis['max_confidence_improvement']:+.3f}")
+        print(f"일관성 점수: {analysis['consistency_score']:.1f}%")
+        print(f"권장사항: {result['recommendation']}")
+        
+        print("\n=== 디노이징 효과 세부사항 ===")
+        for method, effectiveness in analysis['denoising_effectiveness'].items():
+            print(f"{method:>10}: 개선={effectiveness['improved']}, "
+                  f"신뢰도={effectiveness['confidence_improvement']:+.3f}, "
+                  f"다름={effectiveness['different_from_current']}")
+        print("=" * 35)
     
     def _validate_model_paths(self, model_path: str, basic_model_path: str):
         """
