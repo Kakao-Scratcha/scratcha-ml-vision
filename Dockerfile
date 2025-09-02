@@ -34,5 +34,5 @@ RUN mkdir -p /tmp/models/train_tf /tmp/models/yolo11x_tf
 EXPOSE 8000
 
 # 컨테이너 시작 시 FastAPI 서버 실행
-CMD ["python", "fastapi_app.py"]
+CMD ["python", "main.py"]
 
