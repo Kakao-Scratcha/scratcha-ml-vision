@@ -605,20 +605,34 @@ class YOLODetector:
                         result['confidence_improvement'] = confidence_diff
                         if confidence_diff > 0.05:  # 5% 이상 개선
                             result['denoising_improved'] = True
-                
-                # 결과 출력
-                print(f" 디노이징 검증 결과:")
-                print(f" - 현재 모델 정답: {current_answer['class_name']} (신뢰도: {current_answer['confidence']:.3f})")
-                
-                if result['noisy_detection']:
-                    print(f" - 노이즈 이미지 검출: {result['noisy_detection']['class_name']} "
-                          f"(신뢰도: {result['noisy_detection']['confidence']:.3f})")
-                
-                print(f" - 디노이징 이미지 검출: {denoised_best['class_name']} "
-                      f"(신뢰도: {denoised_best['confidence']:.3f})")
+                else:
+                    # 신뢰도 임계값 미달은 다른 결과로 간주
+                    result['is_different_from_current'] = True
+            else:
+                # 검출 실패는 다른 결과로 간주
+                result['is_different_from_current'] = True
+            
+            # 결과 출력
+            print(f" 디노이징 검증 결과:")
+            print(f" - 현재 모델 정답: {current_answer['class_name']} (신뢰도: {current_answer['confidence']:.3f})")
+            
+            if result['noisy_detection']:
+                print(f" - 노이즈 이미지 검출: {result['noisy_detection']['class_name']} "
+                      f"(신뢰도: {result['noisy_detection']['confidence']:.3f})")
+            else:
+                print(f" - 노이즈 이미지 검출: 검출 실패")
+            
+            if result['denoised_detection']:
+                print(f" - 디노이징 이미지 검출: {result['denoised_detection']['class_name']} "
+                      f"(신뢰도: {result['denoised_detection']['confidence']:.3f})")
                 print(f" - 신뢰도 개선: {result['confidence_improvement']:+.3f}")
                 print(f" - 디노이징 효과: {'있음' if result['denoising_improved'] else '없음'}")
-                print(f" - 현재 모델과 다른 결과: {'예' if result['is_different_from_current'] else '아니오'}")
+            else:
+                print(f" - 디노이징 이미지 검출: 검출 실패")
+                print(f" - 신뢰도 개선: 해당 없음")
+                print(f" - 디노이징 효과: 해당 없음")
+            
+            print(f" - 현재 모델과 다른 결과: {'예' if result['is_different_from_current'] else '아니오'}")
             
             return result
             

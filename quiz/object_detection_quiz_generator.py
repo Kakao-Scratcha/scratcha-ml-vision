@@ -117,30 +117,75 @@ class ObjectDetectionQuizGenerator:
                                                                               intensity=intensity, 
                                                                               alpha=alpha)
             
-            # 6. 기본 모델로 검증 (노이즈 처리된 이미지 배열을 바이트로 변환)
-            success, encoded_image = cv2.imencode('.jpg', processed_image_array)
+            # 6. 이중 검증: 기본 노이즈 이미지 + 디노이징된 이미지 모두 체크
+            success, encoded_image = cv2.imencode('.webp', processed_image_array)
             if success:
                 processed_image_bytes = encoded_image.tobytes()
             else:
                 raise ValueError("이미지 인코딩에 실패했습니다.")
             
-            is_valid = self.yolo_detector.validate_with_basic_model(processed_image_bytes, correct_answer)
+            print("\n=== 이중 검증 시작 ===")
+            print(f"train_tf 모델 정답: {correct_answer['class_name']} (신뢰도: {correct_answer['confidence']:.3f})")
             
-            if not is_valid:
-                print("검증 실패: 기본 모델과 결과가 같습니다. 다른 이미지로 재시도합니다.")
-                return self.generate_quiz_with_difficulty(difficulty, image_folder)
+            # 6-1. 기본 노이즈 이미지로 검증
+            print("\n1단계: 기본 노이즈 이미지 검증")
+            basic_validation = self.yolo_detector.validate_with_basic_model(processed_image_bytes, correct_answer)
             
-            print("검증 성공: 기본 모델과 결과가 다릅니다.")
-            
-            # 기본 모델 인식률 요약 정보 추가
+            # 기본 노이즈 이미지 검출 결과 상세 로그
             basic_detected_objects = self.yolo_detector.detect_objects_with_basic_model(processed_image_bytes)
             if basic_detected_objects:
                 basic_best = max(basic_detected_objects, key=lambda x: x['confidence'])
-                print(f" 노이즈 효과 요약 [{difficulty.upper()}]:")
-                print(f" - 현재 모델 신뢰도: {correct_answer['confidence']*100:.1f}%")
-                print(f" - 기본 모델 신뢰도: {basic_best['confidence']*100:.1f}%")
-                print(f" - 신뢰도 감소율: {(correct_answer['confidence'] - basic_best['confidence'])/correct_answer['confidence']*100:.1f}%")
-                print(f" - 노이즈 설정: 강도 {intensity*100:.0f}%, 알파 {alpha*100:.0f}%")
+                print(f"노이즈 이미지 결과: {basic_best['class_name']} (신뢰도: {basic_best['confidence']:.3f})")
+                print(f"   → train_tf와 비교: {'다름 ✓' if basic_validation else '같음 ❌'}")
+            else:
+                print("노이즈 이미지 결과: 검출 실패")
+                print("   → train_tf와 비교: 다름 ✓ (검출 실패)")
+            
+            if not basic_validation:
+                print("❌ 1단계 실패: 기본 노이즈 이미지에서 기본 모델과 결과가 같습니다. 다른 이미지로 재시도합니다.")
+                return self.generate_quiz_with_difficulty(difficulty, image_folder)
+            
+            print("✅ 1단계 통과: 기본 노이즈 이미지에서 다른 결과")
+            
+            # 6-2. 하이브리드 디노이징 후 검증
+            print("\n2단계: 하이브리드 디노이징 후 검증")
+            denoising_validation = self.yolo_detector.validate_with_hybrid_denoising(
+                processed_image_bytes, correct_answer, denoise_strength='medium'
+            )
+            
+            # 디노이징 이미지 검출 결과 상세 로그
+            denoised_detection = denoising_validation.get('denoised_detection')
+            if denoised_detection:
+                print(f"🔧 디노이징 이미지 결과: {denoised_detection['class_name']} (신뢰도: {denoised_detection['confidence']:.3f})")
+            else:
+                print("🔧 디노이징 이미지 결과: 검출 실패")
+            
+            is_denoising_valid = denoising_validation.get('is_different_from_current', False)
+            print(f"     train_tf와 비교: {'다름' if is_denoising_valid else '같음'}")
+            
+            if not is_denoising_valid:
+                print(" 2단계 실패: 하이브리드 디노이징 후에도 기본 모델과 결과가 같습니다. 다른 이미지로 재시도합니다.")
+                return self.generate_quiz_with_difficulty(difficulty, image_folder)
+            
+            print(" 2단계 통과: 하이브리드 디노이징 후에도 다른 결과")
+            
+            # 종합 결과 로그
+            print("\n 이중 검증 성공: 두 조건 모두 만족!")
+            print("=" * 50)
+            print(f" 검증 결과 요약:")
+            print(f"    train_tf 정답:     {correct_answer['class_name']} (신뢰도: {correct_answer['confidence']:.3f})")
+            if basic_detected_objects:
+                basic_best = max(basic_detected_objects, key=lambda x: x['confidence'])
+                print(f"    노이즈 이미지:      {basic_best['class_name']} (신뢰도: {basic_best['confidence']:.3f})")
+            else:
+                print(f"    노이즈 이미지:      검출 실패")
+            if denoised_detection:
+                print(f"    디노이징 이미지:    {denoised_detection['class_name']} (신뢰도: {denoised_detection['confidence']:.3f})")
+            else:
+                print(f"    디노이징 이미지:    검출 실패")
+            print(f"    디노이징 개선 효과: {denoising_validation.get('denoising_improved', False)}")
+            print(f"    신뢰도 개선:        {denoising_validation.get('confidence_improvement', 0.0):.3f}")
+            print("=" * 50)
             
             # 7. 노이즈 처리된 이미지를 기존 버킷에 저장 (난이도별 폴더)
             # 이미지 배열을 바이트로 변환

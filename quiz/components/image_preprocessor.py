@@ -147,18 +147,18 @@ class ImagePreprocessor:
         Returns:
             디노이징된 이미지
         """
-        # 강도별 파라미터 설정
+        # 강도별 파라미터 설정 (과도한 디노이징 방지를 위해 light 강도 더 가볍게 조정)
         if denoise_strength == 'light':
             gaussian_kernel = (3, 3)
-            gaussian_sigma = 0.5
-            bilateral_d = 5
-            bilateral_sigma = 30
+            gaussian_sigma = 0.3  # 더 약한 블러
+            bilateral_d = 3        # 더 작은 거리
+            bilateral_sigma = 20   # 더 낮은 시그마
             median_kernel = 3
         elif denoise_strength == 'medium':
-            gaussian_kernel = (5, 5)
-            gaussian_sigma = 1.0
-            bilateral_d = 7
-            bilateral_sigma = 50
+            gaussian_kernel = (3, 3)  # light와 동일한 커널 크기
+            gaussian_sigma = 0.7      # 약간 강한 블러
+            bilateral_d = 5            # 중간 거리
+            bilateral_sigma = 35       # 중간 시그마
             median_kernel = 3
         elif denoise_strength == 'strong':
             gaussian_kernel = (7, 7)
@@ -199,10 +199,10 @@ class ImagePreprocessor:
         gray = cv2.cvtColor(noisy_image, cv2.COLOR_BGR2GRAY)
         laplacian_var = cv2.Laplacian(gray, cv2.CV_64F).var()
         
-        # 노이즈 레벨에 따른 강도 결정
-        if laplacian_var < 100:
+        # 노이즈 레벨에 따른 강도 결정 (매우 보수적 임계값으로 과도한 디노이징 방지)
+        if laplacian_var < 1000:
             strength = 'light'
-        elif laplacian_var < 500:
+        elif laplacian_var < 5000:
             strength = 'medium'
         else:
             strength = 'strong'
