@@ -113,3 +113,20 @@ SIMILAR_OBJECT_PAIRS = {
     '양': ['염소', '소'],
     '코끼리': ['매머드','코뿔소']
 }
+
+# FastAPI 및 스케줄링 설정
+API_HOST = os.getenv('API_HOST', '0.0.0.0')
+API_PORT = int(os.getenv('API_PORT', 8000))
+
+# 스케줄링 설정
+SCHEDULE_ENABLED = os.getenv('SCHEDULE_ENABLED', 'true').lower() == 'true'
+SCHEDULE_INTERVAL_HOURS = int(os.getenv('SCHEDULE_INTERVAL_HOURS', 8))  # 8시간마다 실행
+SCHEDULE_TIMEZONE = os.getenv('SCHEDULE_TIMEZONE', 'Asia/Seoul')
+
+# 스케줄링용 퀴즈 생성 수량 (난이도별 동일)
+SCHEDULED_QUIZ_COUNT = int(os.getenv('SCHEDULED_QUIZ_COUNT', 3))  # 난이도별 생성할 퀴즈 개수
+SCHEDULED_QUIZ_COUNTS = {
+    'high': SCHEDULED_QUIZ_COUNT,
+    'middle': SCHEDULED_QUIZ_COUNT,
+    'low': SCHEDULED_QUIZ_COUNT
+}

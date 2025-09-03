@@ -19,9 +19,21 @@ class StorageManager:
     
     def __init__(self):
         """초기화 - Auth.py의 설정을 사용"""
-        print(f"StorageManager 초기화 완료")
+        print("  - StorageManager 시작...")
+        print("  - Auth.py import 및 설정 로딩 중...")
         print(f"  - 퀴즈 이미지 버킷: {quiz_bucket_name}")
         print(f"  - 개발용 버킷: {dev_bucket_name}")
+        print("  - boto3 클라이언트 연결 상태 확인 중...")
+        
+        # boto3 클라이언트 연결 테스트
+        try:
+            from .Auth import client
+            print("  - boto3 클라이언트 가져오기 성공")
+        except Exception as e:
+            print(f"  - boto3 클라이언트 가져오기 실패: {e}")
+            raise
+        
+        print("  - StorageManager 초기화 완료")
     
     def download_model_from_storage(self, model_key: str, local_path: str) -> bool:
         """

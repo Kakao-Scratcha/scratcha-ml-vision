@@ -1,20 +1,63 @@
 import boto3
 import os
+from botocore.config import Config
 from dotenv import load_dotenv
 
 load_dotenv()
 
-client = boto3.client(
+# Kakao Cloud Object Storage 연결 설정 최적화
+config = Config(
     region_name="kr-central-2",
+    read_timeout=300,  # 읽기 타임아웃 5분
+    connect_timeout=120,  # 연결 타임아웃 2분
+    retries={
+        'max_attempts': 5,
+        'mode': 'adaptive'
+    }
+)
+
+client = boto3.client(
     endpoint_url="https://objectstorage.kr-central-2.kakaocloud.com",
     aws_access_key_id=os.getenv("S3_ACCESS_KEY"),
     aws_secret_access_key=os.getenv("S3_SECRET_ACCESS_KEY"),
-    service_name="s3"
+    service_name="s3",
+    config=config
 )
 
 # 버킷 이름
 quiz_bucket_name = os.getenv("BUCKET_NAME")
 dev_bucket_name = os.getenv("DEV_BUCKET_NAME")
+
+# 클라이언트 연결 테스트 및 로그
+try:
+    print("boto3 클라이언트 연결 테스트 중...")
+    print(f"  - 엔드포인트: https://objectstorage.kr-central-2.kakaocloud.com")
+    
+    # 환경변수 확인
+    access_key = os.getenv("S3_ACCESS_KEY")
+    secret_key = os.getenv("S3_SECRET_ACCESS_KEY")
+    print(f"  - ACCESS_KEY 존재: {'Yes' if access_key else 'No'}")
+    print(f"  - SECRET_KEY 존재: {'Yes' if secret_key else 'No'}")
+    if access_key:
+        print(f"  - ACCESS_KEY 시작: {access_key[:10]}...")
+    
+    print(f"  - 퀴즈 버킷: {quiz_bucket_name}")
+    print(f"  - 개발 버킷: {dev_bucket_name}")
+    print(f"  - 연결 타임아웃: {config.connect_timeout}초")
+    print(f"  - 읽기 타임아웃: {config.read_timeout}초")
+    
+    # 실제 연결 테스트 (간단한 API 호출)
+    print("  - 실제 연결 테스트 수행 중...")
+    # 빈 버킷 리스트 호출로 연결 확인
+    response = client.list_buckets()
+    print(f"  - 연결 성공! 계정에 {len(response.get('Buckets', []))}개 버킷 확인")
+    
+    print("✓ boto3 클라이언트 초기화 완료")
+except Exception as e:
+    print(f"✗ boto3 클라이언트 초기화 실패: {e}")
+    print(f"  - 오류 타입: {type(e).__name__}")
+    import traceback
+    print(f"  - 상세 오류: {traceback.format_exc()}")
 
 # 기존 호환성을 위한 변수
 bucket_name = quiz_bucket_name

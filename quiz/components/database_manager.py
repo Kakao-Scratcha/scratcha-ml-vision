@@ -15,8 +15,12 @@ class DatabaseManager:
     
     def __init__(self):
         """초기화"""
+        print("  - DatabaseManager 설정 로딩 중...")
         self._lock = threading.Lock()  # 스레드 안전성을 위한 락
-        print("DatabaseManager 초기화 완료")
+        print(f"  - 데이터베이스 호스트: {DB_CONFIG.get('host', 'Unknown')}")
+        print(f"  - 데이터베이스 포트: {DB_CONFIG.get('port', 'Unknown')}")
+        print(f"  - 데이터베이스 이름: {DB_CONFIG.get('database', 'Unknown')}")
+        print("  - DatabaseManager 준비 완료")
     
     def get_db_connection(self):
         """

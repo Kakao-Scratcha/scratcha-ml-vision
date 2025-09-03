@@ -44,6 +44,14 @@ class ModelManager:
             
             print("모델 파일이 없습니다. 오브젝트 스토리지에서 다운로드를 시작합니다...")
             
+            # 연결 테스트: images 폴더에서 파일 목록 조회
+            print("연결 테스트: images 폴더에서 파일 목록 조회 중...")
+            if self._test_connection():
+                print("✓ 오브젝트 스토리지 연결 테스트 성공")
+            else:
+                print("✗ 오브젝트 스토리지 연결 테스트 실패")
+                return False
+            
             # 모델 다운로드
             start_time = time.time()
             success = self.storage_manager.download_all_models()
@@ -204,4 +212,39 @@ class ModelManager:
             
         except Exception as e:
             print(f"모델 파일 정리 실패: {e}")
+            return False
+    
+    def _test_connection(self) -> bool:
+        """
+        오브젝트 스토리지 연결 테스트 (images 폴더에서 파일 목록 조회)
+        
+        Returns:
+            bool: 연결 테스트 성공 여부
+        """
+        try:
+            from .Auth import get_dev_objects
+            
+            print("  - dev 버킷 연결 테스트 중...")
+            # images 폴더에서 파일 목록 조회 (최대 5개만)
+            test_files = get_dev_objects("images")
+            
+            if test_files:
+                print(f"  - images 폴더에서 {len(test_files)}개 파일 발견")
+                # 첫 번째 파일만 출력
+                if len(test_files) > 0:
+                    print(f"  - 첫 번째 파일: {test_files[0]}")
+                if len(test_files) > 5:
+                    print(f"  - 총 {len(test_files)}개 파일 (5개만 표시)")
+                    for i, file_name in enumerate(test_files[:5]):
+                        print(f"    {i+1}. {file_name}")
+                else:
+                    for i, file_name in enumerate(test_files):
+                        print(f"    {i+1}. {file_name}")
+                return True
+            else:
+                print("  - images 폴더가 비어있거나 접근할 수 없습니다")
+                return False
+                
+        except Exception as e:
+            print(f"  - 연결 테스트 실패: {e}")
             return False

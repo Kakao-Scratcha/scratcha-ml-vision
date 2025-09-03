@@ -24,5 +24,13 @@ botocore>=1.29.0
 # TensorFlow
 tensorflow==2.13.0
 
-# 기타 유틸리티
-typing-extensions>=4.5.0
+# FastAPI 및 웹 서버 (TensorFlow 2.13과 호환 가능한 구버전)
+fastapi==0.95.2
+uvicorn[standard]==0.21.1
+pydantic==1.10.7
+
+# 스케줄링
+apscheduler==3.10.1
+
+# 기타 유틸리티 (TensorFlow 2.13과 호환)
+typing-extensions==4.5.0
