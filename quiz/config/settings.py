@@ -124,7 +124,7 @@ SCHEDULE_INTERVAL_HOURS = int(os.getenv('SCHEDULE_INTERVAL_HOURS', 8))  # 8시�
 SCHEDULE_TIMEZONE = os.getenv('SCHEDULE_TIMEZONE', 'Asia/Seoul')
 
 # 스케줄링용 퀴즈 생성 수량 (난이도별 동일)
-SCHEDULED_QUIZ_COUNT = int(os.getenv('SCHEDULED_QUIZ_COUNT', 3))  # 난이도별 생성할 퀴즈 개수
+SCHEDULED_QUIZ_COUNT = int(os.getenv('SCHEDULED_QUIZ_COUNT', 10))  # 난이도별 생성할 퀴즈 개수
 SCHEDULED_QUIZ_COUNTS = {
     'high': SCHEDULED_QUIZ_COUNT,
     'middle': SCHEDULED_QUIZ_COUNT,

@@ -598,6 +598,8 @@ class YOLODetector:
                     # 현재 모델과 다른 결과인지 확인
                     if denoised_best['class_name'] != current_answer['class_name']:
                         result['is_different_from_current'] = True
+                    else:
+                        result['is_different_from_current'] = False  # 같은 객체 검출 = 실패
                     
                     # 디노이징이 개선되었는지 확인
                     if result['noisy_detection']:
