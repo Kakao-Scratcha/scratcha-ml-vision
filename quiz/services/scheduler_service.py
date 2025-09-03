@@ -13,6 +13,10 @@ from apscheduler.triggers.interval import IntervalTrigger
 from apscheduler.triggers.cron import CronTrigger
 
 # ObjectDetectionQuizGenerator는 지연 로딩으로 처리
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from config.settings import (
     SCHEDULE_ENABLED, 
     SCHEDULE_INTERVAL_HOURS, 
@@ -61,23 +65,30 @@ class SchedulerService:
                 raise
         return self.quiz_generator
     
-    async def start_scheduler(self) -> Dict[str, Any]:
+    async def start_scheduler(self, custom_interval_hours: Optional[int] = None) -> Dict[str, Any]:
         """스케줄러 시작"""
         try:
-            if self.is_running:
-                return {
-                    "status": "already_running",
-                    "message": "스케줄러가 이미 실행 중입니다.",
-                    "interval_hours": SCHEDULE_INTERVAL_HOURS
-                }
+            # 사용할 간격 설정 (동적으로 현재 설정 가져오기)
+            if custom_interval_hours is not None:
+                interval_hours = custom_interval_hours
+            else:
+                import config.settings as settings
+                interval_hours = getattr(settings, 'SCHEDULE_INTERVAL_HOURS', SCHEDULE_INTERVAL_HOURS)
             
-            # 스케줄러 시작
-            self.scheduler.start()
+            # 기존 작업 제거
+            try:
+                self.scheduler.remove_job('quiz_generation_job')
+            except:
+                pass  # 작업이 없으면 무시
             
-            # 주기적 작업 추가 (시간 간격 기반)
+            # 스케줄러가 실행되지 않았으면 시작
+            if not self.scheduler.running:
+                self.scheduler.start()
+            
+            # 새로운 간격으로 작업 추가
             job = self.scheduler.add_job(
                 func=self._generate_scheduled_quizzes,
-                trigger=IntervalTrigger(hours=SCHEDULE_INTERVAL_HOURS),
+                trigger=IntervalTrigger(hours=interval_hours),
                 id='quiz_generation_job',
                 name='정기 퀴즈 생성',
                 replace_existing=True,
@@ -87,12 +98,12 @@ class SchedulerService:
             self.is_running = True
             self.next_execution = job.next_run_time
             
-            logger.info(f"스케줄러 시작됨 - {SCHEDULE_INTERVAL_HOURS}시간마다 실행")
+            logger.info(f"스케줄러 시작됨 - {interval_hours}시간마다 실행")
             
             return {
                 "status": "started",
-                "message": f"스케줄러가 시작되었습니다. {SCHEDULE_INTERVAL_HOURS}시간마다 실행됩니다.",
-                "interval_hours": SCHEDULE_INTERVAL_HOURS,
+                "message": f"스케줄러가 시작되었습니다. {interval_hours}시간마다 실행됩니다.",
+                "interval_hours": interval_hours,
                 "next_execution": self.next_execution.isoformat() if self.next_execution else None,
                 "timezone": SCHEDULE_TIMEZONE
             }
@@ -113,16 +124,16 @@ class SchedulerService:
                     "message": "스케줄러가 실행되고 있지 않습니다."
                 }
             
-            # 스케줄러 중지
-            self.scheduler.shutdown(wait=True)
+            # 스케줄러 중지 (재시작 가능하도록 shutdown 대신 pause 사용)
+            self.scheduler.pause()
             self.is_running = False
             self.next_execution = None
             
-            logger.info("스케줄러 중지됨")
+            logger.info("스케줄러 일시중지됨")
             
             return {
                 "status": "stopped",
-                "message": "스케줄러가 중지되었습니다.",
+                "message": "스케줄러가 일시중지되었습니다.",
                 "execution_count": self.execution_count,
                 "last_execution": self.last_execution.isoformat() if self.last_execution else None
             }
@@ -145,6 +156,11 @@ class SchedulerService:
                     "next_run": job.next_run_time.isoformat() if job.next_run_time else None
                 })
         
+        # 동적으로 현재 설정 가져오기
+        import config.settings as settings
+        current_interval = getattr(settings, 'SCHEDULE_INTERVAL_HOURS', SCHEDULE_INTERVAL_HOURS)
+        current_counts = getattr(settings, 'SCHEDULED_QUIZ_COUNTS', SCHEDULED_QUIZ_COUNTS)
+        
         return {
             "is_running": self.is_running,
             "scheduler_running": self.scheduler.running,
@@ -152,14 +168,14 @@ class SchedulerService:
             "last_execution": self.last_execution.isoformat() if self.last_execution else None,
             "next_execution": self.next_execution.isoformat() if self.next_execution else None,
             "last_result": self.last_result,
-            "interval_hours": SCHEDULE_INTERVAL_HOURS,
+            "interval_hours": current_interval,
             "timezone": SCHEDULE_TIMEZONE,
             "enabled": SCHEDULE_ENABLED,
-            "scheduled_counts": SCHEDULED_QUIZ_COUNTS,
+            "scheduled_counts": current_counts,
             "jobs": jobs
         }
     
-    async def execute_now(self) -> Dict[str, Any]:
+    async def execute_now(self, custom_counts: Optional[Dict[str, int]] = None) -> Dict[str, Any]:
         """즉시 퀴즈 생성 실행"""
         try:
             logger.info("수동 퀴즈 생성 실행 시작")
@@ -167,8 +183,11 @@ class SchedulerService:
             # 퀴즈 생성기 지연 로딩
             quiz_generator = self._ensure_quiz_generator()
             
+            # 사용할 수량 설정
+            target_counts = custom_counts or SCHEDULED_QUIZ_COUNTS
+            
             start_time = datetime.now()
-            total_generated = await quiz_generator.generate_scheduled_quizzes(SCHEDULED_QUIZ_COUNTS)
+            total_generated = await quiz_generator.generate_scheduled_quizzes(target_counts)
             end_time = datetime.now()
             execution_time = (end_time - start_time).total_seconds()
             
@@ -179,7 +198,7 @@ class SchedulerService:
                 "execution_time_seconds": execution_time,
                 "start_time": start_time.isoformat(),
                 "end_time": end_time.isoformat(),
-                "target_counts": SCHEDULED_QUIZ_COUNTS
+                "target_counts": target_counts
             }
             
             logger.info(f"수동 퀴즈 생성 완료: {total_generated}개 ({execution_time:.1f}초)")
