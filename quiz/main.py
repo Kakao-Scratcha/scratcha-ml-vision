@@ -117,23 +117,23 @@ app = FastAPI(
     description="""
     CAPTCHA 퀴즈 생성 서비스
     
-    ## 주요 기능
+    주요 기능
     - 자동 스케줄링: 정기적으로 퀴즈 생성
     - 수동 생성: 즉시 퀴즈 생성 가능
     - 설정 관리: 스케줄 간격 및 생성 수량 조정
     - 실시간 모니터링: 스케줄러 상태 확인
 
-    ## 사용법
+    사용법
     1. /quiz/config - 현재 설정 확인
     2. /quiz/schedule/start - 스케줄러 시작
-    3. /quiz/generate - 수동 퀴즈 생성 (백그라운드 실행)
+    3. /quiz/generate - 수동 퀴즈 생성
     4. /quiz/config/schedule - 스케줄 간격 변경
     5. /quiz/config/counts - 생성 수량 변경
     
-    ## 주의사항
-    - 퀴즈 생성은 시간이 오래 걸릴 수 있습니다 (최대 10분)
+    주의사항
+    - 퀴즈 생성은 시간이 오래 걸릴 수 있습니다
     - 502 에러가 발생하여도 진행 중 일 수 있습니다.
-    - 최대 생성 수량: 500개
+    - 1회 최대 생성 수량: 난이도별 500개
     - 최대 스케줄 간격: 168시간
     - 최소 스케줄 간격: 30분
     """,
@@ -143,7 +143,7 @@ app = FastAPI(
 
 @app.get("/", response_model=ApiResponse, tags=["root"], summary="API 상태 확인")
 async def root():
-    """루트 엔드포인트"""
+    """API 상태 확인"""
     return ApiResponse(
         status="success",
         message="CAPTCHA 생성 서비스가 실행 중입니다.",
@@ -157,7 +157,7 @@ async def root():
 
 @app.get("/health", response_model=ApiResponse, tags=["root"], summary="서버 상태체크")
 async def health_check():
-    """헬스체크 엔드포인트"""
+    """서버 상태체크"""
     scheduler_service = get_scheduler_service()
     status = scheduler_service.get_status()
     

@@ -66,6 +66,7 @@ class DatabaseManager:
             CREATE TABLE IF NOT EXISTS captcha_problem (
                 id INT AUTO_INCREMENT PRIMARY KEY,
                 image_url TEXT NOT NULL,
+                original_image TEXT NULL,
                 answer VARCHAR(20) NOT NULL,
                 prompt VARCHAR(255) NOT NULL,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -124,13 +125,14 @@ class DatabaseManager:
                 # MySQL에 저장할 데이터 준비 (id는 자동 생성)
                 insert_query = """
                 INSERT INTO captcha_problem 
-                (image_url, answer, prompt, created_at, expires_at, difficulty, 
+                (image_url, original_image, answer, prompt, created_at, expires_at, difficulty, 
                  wrong_answer_1, wrong_answer_2, wrong_answer_3)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 """
                 
                 quiz_record = (
                     quiz_data['image_url'],                    # image_url
+                    quiz_data.get('original_image_path', ''),  # original_image (원본 이미지 경로)
                     correct_option['class_name'],              # answer
                     quiz_data.get('prompt', PROMPT),          # prompt
                     datetime.now(),                            # created_at
