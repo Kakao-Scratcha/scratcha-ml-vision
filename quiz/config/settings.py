@@ -43,7 +43,7 @@ MODEL_DOWNLOAD_RETRY = 3      # 모델 다운로드 재시도 횟수
 CONFIDENCE_THRESHOLD = 0.6  # 신뢰도 임계값 (문제 생성용)
 IOU_THRESHOLD = 0.5  # IoU 임계값 (문제 생성용)
 CREATED_AT = datetime.now().isoformat()  # 생성 시간 (문제 생성용)
-EXPIRES_AT = (datetime.now() + timedelta(days=1)).isoformat()  # 만료 시간 하루 (문제 생성용)
+EXPIRES_AT = (datetime.now() + timedelta(days=7)).isoformat()  # 만료 시간 하루 (문제 생성용)
 PROMPT = "스크래치 후 정답을 선택하세요."  # 기본 퀴즈 문제(동적 프롬프트가 없을 때 사용)
 MAX_RETRY_ATTEMPTS = 10  # 문제 생성 수 (문제 생성용)
 
