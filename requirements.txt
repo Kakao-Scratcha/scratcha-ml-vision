@@ -1,7 +1,8 @@
 # 이미지 처리 (헤드리스 버전 - Docker 환경에 적합)
-opencv-python-headless>=4.8.0
-numpy>=1.24.0
+opencv-python-headless>=4.8.0,<4.10.0
+numpy>=1.22.0,<=1.24.3
 pillow>=10.0.0
+matplotlib>=3.7.0
 
 # 비동기 처리
 aiofiles>=23.0.0
@@ -34,3 +35,11 @@ apscheduler==3.10.1
 
 # 기타 유틸리티 (TensorFlow 2.13과 호환)
 typing-extensions==4.5.0
+
+# 스트레스 테스트
+locust>=2.15.0
+
+# 다중 모델 검출 테스트
+torch>=1.9.0
+torchvision>=0.10.0
+pillow>=8.0.0
