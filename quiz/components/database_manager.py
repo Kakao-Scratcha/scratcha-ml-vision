@@ -136,7 +136,7 @@ class DatabaseManager:
                     correct_option['class_name'],              # answer
                     quiz_data.get('prompt', PROMPT),          # prompt
                     datetime.now(),                            # created_at
-                    datetime.now() + timedelta(days=1),       # expires_at (1일 후)
+                    datetime.now() + timedelta(days=7),       # expires_at (1일 후)
                     difficulty_number,                         # difficulty
                     wrong_options[0]['class_name'] if len(wrong_options) > 0 else '',  # wrong_answer_1
                     wrong_options[1]['class_name'] if len(wrong_options) > 1 else '',  # wrong_answer_2
